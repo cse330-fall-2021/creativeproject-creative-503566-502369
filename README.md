@@ -33,6 +33,7 @@ is down.
   - countdown for drawing and guessing 
   - Rank users when one round game ends
   - each picture will be saved
+  - users can export pictures as png
 
 - Technics will be used
   - node.js
