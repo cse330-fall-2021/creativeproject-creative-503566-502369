@@ -14,8 +14,7 @@ Multiplayer draw&guess game website
   - users can log in one account, and sessions hold for one day even if the server
 is down.: 2
   - users can logout: 2
-  - users can add friends: 3
-  - users can delete friends: 3
+  - users can view recent drawings: 6
 
 - Room system(38)
   - users can create room: 5
@@ -24,19 +23,18 @@ is down.: 2
   - users can exit room: 2
   - users can chat in room: 10
   - room creator can start the game: 2
-  - room creator can invite friends: 2
   - room creator can kick other users: 2
   - room creator can set password for the room: 2
   - users can see who are in the room: 4
   - users can choose seat in the room(draw&guess will play in the order of seats.): 5
 
-- Game(28)
-  - users can see drawing in real time(most difficult): 20
+- Game(26)
+  - users can see drawing in real time(most difficult): 18
   - users can guess what is being drawn and who answer correctly will earn scores: 4
   - countdown for drawing and guessing: 2 
   - Rank users when one round game ends: 2
 
-- Technics will be used(22)
+- Technics will be used(24)
   - node.js
   - mysql
   - redis
@@ -47,4 +45,4 @@ is down.: 2
   - paper.js
   - socket.io
   - vue
-  
+  - bulma
