@@ -72,6 +72,17 @@ let exported = {
         }
         return RetHandler.success(ret);
     },
+    isLogin: async function (req, res) {
+        let sessionId = req.sessionID;
+        let ret = false;
+        try {
+            ret = await UserRedis.isLogin(sessionId);
+        } catch (e) {
+            console.error(e.message);
+            return RetHandler.fail(-2, e.message);
+        }
+        return RetHandler.success(ret);
+    },
     logout: async function (req, res) {
         let sessionId = req.sessionID;
         try {

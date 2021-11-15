@@ -6,18 +6,13 @@ const urlencodedParser = bodyParser.urlencoded({extended: false});
 const fs = require("fs");
 const cookieParser = require("cookie-parser");
 const sessions = require('express-session');
+const UserRedis = require("./redis/UserRedis.js");
 
 let app = express();
 
 // Init redis
 const connections = require("./dao/connections.js");
 connections.redis_client_init();
-const redis_client = connections.getRedisClient();
-redis_client.config('set', 'notify-keyspace-events', 'KEA');
-redis_client.subscribe('__keyevent@0__:expired');
-redis_client.on('message', function (channel, key) {
-    console.log(channel + " " + key);
-});
 
 // Middlewares
 // app.use(express.static('dist'))
@@ -39,15 +34,25 @@ app.use(function (req, res, next) {
     // Pass to next layer of middleware
     next();
 });
+
 app.use(sessions({
     secret: "thisismysecrctekeyasdsdgwefq324saf121d",
     saveUninitialized: true,
     cookie: {
-        maxAge: 1000 * 60 * 60 * 24,// one day
         secure: false
     },
     resave: false,
 }));
+
+app.use(function (req, res, next) {
+    try {
+        let sessionId = req.sessionID;
+        UserRedis.refreshLogin(sessionId);
+    }catch (e) {
+        console.error(e);
+    }
+    next();
+})
 
 const LoginService = require("./services/LoginService.js");
 const ResHandler = require("./tools/ResHandler.js");
@@ -55,7 +60,7 @@ const ResHandler = require("./tools/ResHandler.js");
 let roomList = [
     {
         id: 1,
-        name: "room1234567890123", // 17 characters
+        name: "room123456789012345678901234567890", // 17 characters
         playerNum: 1,
     },
     {
@@ -95,23 +100,6 @@ let roomList = [
     }
 ];
 
-app.get('/', async function (req, res) {
-    redis_client.eval(fs.readFileSync('./test.lua'), 1, "a", 2, function (err, res) {
-        console.log(res);
-    });
-    redis_client.hset("ab", "username", "nba");
-    redis_client.hset("ab", "password", 1);
-    redis_client.hset("ab", "sessionId", 2);
-    redis_client.hset("ab", "abcasd", "nbaaaaaa");
-    let a = await new Promise(function (resolve, reject) {
-        redis_client.hget("ab", "sessionId", function (err, results) {
-            console.log(results);
-            resolve(results);
-        })
-    });
-    res.send(a);
-});
-
 app.post("/register", jsonParser, async function (req, res) {
     let ret = await LoginService.register(req, res).then();
     if (ret.err === 0) {
@@ -123,6 +111,15 @@ app.post("/register", jsonParser, async function (req, res) {
 
 app.post("/login", jsonParser, async function (req, res) {
     let ret = await LoginService.login(req, res).then();
+    if (ret.err === 0) {
+        ResHandler.success(res, ret.data);
+    } else {
+        ResHandler.fail(res, ret.err, ret.errMsg);
+    }
+});
+
+app.get("/is-login", jsonParser, async function (req, res) {
+    let ret = await LoginService.isLogin(req, res).then();
     if (ret.err === 0) {
         ResHandler.success(res, ret.data);
     } else {

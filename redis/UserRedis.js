@@ -1,11 +1,23 @@
-let connections = require("../dao/connections.js")
 const fs = require("fs");
 const path = require("path");
-const redis_client = connections.getRedisClient();
+const redis = require('redis');
+const redis_client = redis.createClient();
 const SESSION_TABLE_KEY = "sessionTable";
 const USER_TABLE_PREFIX = "user:";
 
 let exported = {
+    isLogin: function (sessionId) {
+        // update session table and insert user hash table
+        return new Promise(function (resolve, reject) {
+            redis_client.hexists(SESSION_TABLE_KEY, sessionId, function (err, results) {
+                if (err) {
+                    reject("Redis down");
+                } else {
+                    resolve(results === 1);
+                }
+            })
+        });
+    },
     login: function (userId, username, sessionId, csrfToken) {
         // update session table and insert user hash table
         return new Promise(function (resolve, reject) {
@@ -31,6 +43,18 @@ let exported = {
                         resolve(result);
                     }
                 });
+        });
+    },
+    refreshLogin: function (sessionId) {
+        return new Promise(function (resolve, reject) {
+            redis_client.eval(fs.readFileSync(path.resolve(__dirname, './lua/refreshLogin.lua')), 1, sessionId, function (err, result) {
+                if (err) {
+                    console.error(err);
+                    reject("Redis down");
+                } else {
+                    resolve(result);
+                }
+            });
         });
     },
 };
