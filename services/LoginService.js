@@ -59,9 +59,9 @@ let exported = {
         }
         let csrfToken = Encryption.randomBase64();
         try {
-            await UserDao.login(userDB.id, req.session.id);
-            await UserRedis.login(userDB.id, userDB.username,req.session.id, csrfToken);
-        }catch (e) {
+            await UserDao.login(userDB.id, req.sessionID);
+            await UserRedis.login(userDB.id, userDB.username, req.sessionID, csrfToken);
+        } catch (e) {
             console.error(e.message);
             return RetHandler.fail(-2, e.message);
         }
@@ -71,6 +71,16 @@ let exported = {
             "userId": userDB.id
         }
         return RetHandler.success(ret);
+    },
+    logout: async function (req, res) {
+        let sessionId = req.sessionID;
+        try {
+            await UserRedis.logout(sessionId);
+        } catch (e) {
+            console.error(e.message);
+            return RetHandler.fail(-2, e.message);
+        }
+        return RetHandler.success(true);
     },
 };
 

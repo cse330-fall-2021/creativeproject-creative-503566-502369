@@ -4,7 +4,6 @@ const bodyParser = require('body-parser');
 const jsonParser = bodyParser.json();
 const urlencodedParser = bodyParser.urlencoded({extended: false});
 const fs = require("fs");
-const cors = require('cors');
 const cookieParser = require("cookie-parser");
 const sessions = require('express-session');
 
@@ -14,9 +13,9 @@ let app = express();
 const connections = require("./dao/connections.js");
 connections.redis_client_init();
 const redis_client = connections.getRedisClient();
-redis_client.config('set','notify-keyspace-events','KEA');
+redis_client.config('set', 'notify-keyspace-events', 'KEA');
 redis_client.subscribe('__keyevent@0__:expired');
-redis_client.on('message', function(channel, key) {
+redis_client.on('message', function (channel, key) {
     console.log(channel + " " + key);
 });
 
@@ -24,12 +23,30 @@ redis_client.on('message', function(channel, key) {
 // app.use(express.static('dist'))
 app.use(bodyParser.json());
 app.use(cookieParser());
-app.use(cors());
+// Add headers before the routes are defined
+app.use(function (req, res, next) {
+    // Website you wish to allow to connect
+    res.setHeader('Access-Control-Allow-Origin', 'http://localhost:8080');
+    // Request methods you wish to allow
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
+    // Request headers you wish to allow
+    res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,content-type');
+
+    // Set to true if you need the website to include cookies in the requests sent
+    // to the API (e.g. in case you use sessions)
+    res.setHeader('Access-Control-Allow-Credentials', true);
+
+    // Pass to next layer of middleware
+    next();
+});
 app.use(sessions({
     secret: "thisismysecrctekeyasdsdgwefq324saf121d",
     saveUninitialized: true,
-    cookie: {maxAge: 1000 * 60 * 60 * 24}, // one day
-    resave: false
+    cookie: {
+        maxAge: 1000 * 60 * 60 * 24,// one day
+        secure: false
+    },
+    resave: false,
 }));
 
 const LoginService = require("./services/LoginService.js");
@@ -97,16 +114,29 @@ app.get('/', async function (req, res) {
 
 app.post("/register", jsonParser, async function (req, res) {
     let ret = await LoginService.register(req, res).then();
-    if (ret.err !== 0) {
-        ResHandler.fail(res, ret.err, ret.errMsg);
-    } else {
+    if (ret.err === 0) {
         ResHandler.success(res, ret.data);
+    } else {
+        ResHandler.fail(res, ret.err, ret.errMsg);
     }
 });
 
 app.post("/login", jsonParser, async function (req, res) {
     let ret = await LoginService.login(req, res).then();
-    ResHandler.success(res, ret);
+    if (ret.err === 0) {
+        ResHandler.success(res, ret.data);
+    } else {
+        ResHandler.fail(res, ret.err, ret.errMsg);
+    }
+});
+
+app.post("/logout", jsonParser, async function (req, res) {
+    let ret = await LoginService.logout(req, res).then();
+    if (ret.err === 0) {
+        ResHandler.success(res, ret.data);
+    } else {
+        ResHandler.fail(res, ret.err, ret.errMsg);
+    }
 });
 
 app.get('/events', (req, res) => {
