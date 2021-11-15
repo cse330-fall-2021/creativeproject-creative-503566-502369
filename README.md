@@ -45,4 +45,5 @@ is down.: 2
   - paper.js
   - socket.io
   - vue
+  - vue-cli
   - bulma

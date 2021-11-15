@@ -5,58 +5,40 @@ const jsonParser = bodyParser.json();
 const urlencodedParser = bodyParser.urlencoded({extended: false});
 const fs = require("fs");
 const cors = require('cors');
+const cookieParser = require("cookie-parser");
+const sessions = require('express-session');
 
 let app = express();
-const redis_client = redis.createClient();
 
-function redis_client_init() {
-    redis_client.on('connect', function () {
-        console.log('Redis Connected!'); // Connected!
-    });
-}
+// Init redis
+const connections = require("./dao/connections.js");
+connections.redis_client_init();
+const redis_client = connections.getRedisClient();
+redis_client.config('set','notify-keyspace-events','KEA');
+redis_client.subscribe('__keyevent@0__:expired');
+redis_client.on('message', function(channel, key) {
+    console.log(channel + " " + key);
+});
 
-redis_client_init();
-
+// Middlewares
 // app.use(express.static('dist'))
 app.use(bodyParser.json());
+app.use(cookieParser());
 app.use(cors());
+app.use(sessions({
+    secret: "thisismysecrctekeyasdsdgwefq324saf121d",
+    saveUninitialized: true,
+    cookie: {maxAge: 1000 * 60 * 60 * 24}, // one day
+    resave: false
+}));
 
-let events =
-    [
-        {
-            id: 1,
-            name: 'Charity Ball',
-            category: 'Fundraising',
-            description: 'Spend an elegant night of dinner and dancing with us as we raise money for our new rescue farm.',
-            featuredImage: 'https://placekitten.com/500/500',
-            images: [
-                'https://placekitten.com/500/500',
-                'https://placekitten.com/500/500',
-                'https://placekitten.com/500/500',
-            ],
-            location: '1234 Fancy Ave',
-            date: '12-25-2019',
-            time: '11:30'
-        },
-        {
-            id: 2,
-            name: 'Rescue Center Goods Drive',
-            category: 'Adoptions',
-            description: 'Come to our donation drive to help us replenish our stock of pet food, toys, bedding, etc. We will have live bands, games, food trucks, and much more.',
-            featuredImage: 'https://placekitten.com/500/500',
-            images: [
-                'https://placekitten.com/500/500'
-            ],
-            location: '1234 Dog Alley',
-            date: '11-21-2019',
-            time: '12:00'
-        }
-    ];
+const LoginService = require("./services/LoginService.js");
+const ResHandler = require("./tools/ResHandler.js");
 
 let roomList = [
     {
         id: 1,
-        name: "room1",
+        name: "room1234567890123", // 17 characters
         playerNum: 1,
     },
     {
@@ -113,11 +95,18 @@ app.get('/', async function (req, res) {
     res.send(a);
 });
 
-app.post("/login", jsonParser, function (req, res) {
-    let username = req.body.username;
-    let password = req.body.password;
-    console.log("username:" + username + " password:"+ password);
-    res.json(JSON.stringify(true));
+app.post("/register", jsonParser, async function (req, res) {
+    let ret = await LoginService.register(req, res).then();
+    if (ret.err !== 0) {
+        ResHandler.fail(res, ret.err, ret.errMsg);
+    } else {
+        ResHandler.success(res, ret.data);
+    }
+});
+
+app.post("/login", jsonParser, async function (req, res) {
+    let ret = await LoginService.login(req, res).then();
+    ResHandler.success(res, ret);
 });
 
 app.get('/events', (req, res) => {
@@ -193,49 +182,49 @@ app.get("/room-messages/:id", function (req, res) {
             username: "E-Doz"
         },
         {
-            id:2,
+            id: 2,
             content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Etiam semper diam at erat pulvinar, at pulvinar\n" +
                 "            felis blandit. Vestibulum volutpat tellus diam, consequat gravida libero rhoncus ut. Morbi maximus, leo sit\n" +
                 "            amet vehicula eleifend, nunc dui porta orci, quis semper odio felis ut quam.",
             username: "E-Doz"
         },
         {
-            id:3,
+            id: 3,
             content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Etiam semper diam at erat pulvinar, at pulvinar\n" +
                 "            felis blandit. Vestibulum volutpat tellus diam, consequat gravida libero rhoncus ut. Morbi maximus, leo sit\n" +
                 "            amet vehicula eleifend, nunc dui porta orci, quis semper odio felis ut quam.",
             username: "E-Doz"
         },
         {
-            id:4,
+            id: 4,
             content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Etiam semper diam at erat pulvinar, at pulvinar\n" +
                 "            felis blandit. Vestibulum volutpat tellus diam, consequat gravida libero rhoncus ut. Morbi maximus, leo sit\n" +
                 "            amet vehicula eleifend, nunc dui porta orci, quis semper odio felis ut quam.",
             username: "E-Doz"
         },
         {
-            id:5,
+            id: 5,
             content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Etiam semper diam at erat pulvinar, at pulvinar\n" +
                 "            felis blandit. Vestibulum volutpat tellus diam, consequat gravida libero rhoncus ut. Morbi maximus, leo sit\n" +
                 "            amet vehicula eleifend, nunc dui porta orci, quis semper odio felis ut quam.",
             username: "E-Doz"
         },
         {
-            id:6,
+            id: 6,
             content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Etiam semper diam at erat pulvinar, at pulvinar\n" +
                 "            felis blandit. Vestibulum volutpat tellus diam, consequat gravida libero rhoncus ut. Morbi maximus, leo sit\n" +
                 "            amet vehicula eleifend, nunc dui porta orci, quis semper odio felis ut quam.",
             username: "E-Doz"
         },
         {
-            id:7,
+            id: 7,
             content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Etiam semper diam at erat pulvinar, at pulvinar\n" +
                 "            felis blandit. Vestibulum volutpat tellus diam, consequat gravida libero rhoncus ut. Morbi maximus, leo sit\n" +
                 "            amet vehicula eleifend, nunc dui porta orci, quis semper odio felis ut quam.",
             username: "E-Doz"
         },
         {
-            id:8,
+            id: 8,
             content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Etiam semper diam at erat pulvinar, at pulvinar\n" +
                 "            felis blandit. Vestibulum volutpat tellus diam, consequat gravida libero rhoncus ut. Morbi maximus, leo sit\n" +
                 "            amet vehicula eleifend, nunc dui porta orci, quis semper odio felis ut quam.",
