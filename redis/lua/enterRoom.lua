@@ -15,7 +15,6 @@ if exists == 1 then
         return -2 --- room does not exist.
     end
     local seats = redis.call("hgetall", seatPrefix .. roomId)
---     return seats[4]
     local i = 1
     while( i <= 16 )
     do

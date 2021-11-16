@@ -89,7 +89,6 @@ let exported = {
         }
         try {
             let enterRoom = Number(await RoomRedis.enterRoom(roomId, roomPassword, userInfo.userId, roomName, userInfo.username));
-            console.log(enterRoom);
             if (enterRoom === 0) {
                 return RetHandler.fail(-1, "Please login first.");
             } else if (enterRoom === -1) {
@@ -106,7 +105,20 @@ let exported = {
         }
     },
     exitRoom: async function (req, res) {
-
+        let sessionId = req.sessionID;
+        let userInfo = await fetchBySessionId(sessionId);
+        if (!userInfo) {
+            return RetHandler.fail(-1, "Please login first.");
+        }
+        let userId = userInfo.userId;
+        let username = userInfo.username;
+        let userRoomId = userInfo.roomId === undefined ? -1 : userInfo.roomId;
+        try {
+            let exitRoom = Number(await RoomRedis.exitRoom(userId, username, userRoomId));
+            return RetHandler.success(exitRoom);
+        } catch (e) {
+            return RetHandler.fail(-2, e.message);
+        }
     },
 };
 

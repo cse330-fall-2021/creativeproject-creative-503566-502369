@@ -205,6 +205,15 @@ app.post("/enter-room", jsonParser, async function (req, res) {
     }
 });
 
+app.post("/exit-room", jsonParser, async function (req, res) {
+    let ret = await RoomService.exitRoom(req, res).then();
+    if (ret.err === 0) {
+        ResHandler.success(res, ret.data);
+    } else {
+        ResHandler.fail(res, ret.err, ret.errMsg);
+    }
+});
+
 app.get('/events', (req, res) => {
     res.send(events);
 });

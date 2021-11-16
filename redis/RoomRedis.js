@@ -101,11 +101,13 @@ let exported = {
                         reject("Redis down");
                     } else {
                         let ret = {};
-                        for (let i = 0; i < result.length; i += 2) {
-                            let key = result[i];
-                            let value = result[i + 1];
-                            if (key !== "roomPassword") {
-                                ret[key] = value;
+                        if (result !== null) {
+                            for (let i = 0; i < result.length; i += 2) {
+                                let key = result[i];
+                                let value = result[i + 1];
+                                if (key !== "roomPassword") {
+                                    ret[key] = value;
+                                }
                             }
                         }
                         resolve(ret);
@@ -117,6 +119,20 @@ let exported = {
         return new Promise(function (resolve, reject) {
             redis_client.eval(fs.readFileSync(path.resolve(__dirname, './lua/enterRoom.lua')), 9,
                 USER_TABLE_PREFIX, ROOM_PREFIX, PLAYERS_PREFIX, SEATS_PREFIX, roomId, roomPassword, userId, roomName, username,
+                function (err, result) {
+                    if (err) {
+                        console.error(err);
+                        reject("Redis down");
+                    } else {
+                        resolve(result);
+                    }
+                });
+        });
+    },
+    exitRoom: function (userId, username, userRoomId) {
+        return new Promise(function (resolve, reject) {
+            redis_client.eval(fs.readFileSync(path.resolve(__dirname, './lua/exitRoom.lua')), 7,
+                USER_TABLE_PREFIX, ROOM_PREFIX, PLAYERS_PREFIX, SEATS_PREFIX, userRoomId, userId, username,
                 function (err, result) {
                     if (err) {
                         console.error(err);
