@@ -8,5 +8,5 @@ local expirePeriod = 60 * 60 * 24
 
 redis.call("hset", sessionTableKey, sessionId, tonumber(userId))
 redis.call("del", userTablePrefix ..userId)
-redis.call("hmset", userTablePrefix .. userId, "username", username, "sessionId", sessionId, "csrfToken", csrfToken)
+redis.call("hmset", userTablePrefix .. userId, "username", username, "sessionId", sessionId, "csrfToken", csrfToken, "userId", userId)
 redis.call("setex", "sessionExpire:" .. sessionId, expirePeriod, expirePeriod)

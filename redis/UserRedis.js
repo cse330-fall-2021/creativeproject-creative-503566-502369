@@ -6,6 +6,19 @@ const SESSION_TABLE_KEY = "sessionTable";
 const USER_TABLE_PREFIX = "user:";
 
 let exported = {
+    fetchBySessionId: function (sessionId) {
+        return new Promise(function (resolve, reject) {
+            redis_client.eval(fs.readFileSync(path.resolve(__dirname, './lua/fetchBySessionId.lua')), 3,
+                SESSION_TABLE_KEY, USER_TABLE_PREFIX, sessionId, function (err, result) {
+                    if (err) {
+                        console.error(err);
+                        reject("Redis down");
+                    } else {
+                        resolve(result);
+                    }
+                });
+        });
+    },
     isLogin: function (sessionId) {
         // update session table and insert user hash table
         return new Promise(function (resolve, reject) {

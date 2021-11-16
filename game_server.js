@@ -1,9 +1,7 @@
 let express = require('express');
-const redis = require('redis');
 const bodyParser = require('body-parser');
 const jsonParser = bodyParser.json();
 const urlencodedParser = bodyParser.urlencoded({extended: false});
-const fs = require("fs");
 const cookieParser = require("cookie-parser");
 const sessions = require('express-session');
 const UserRedis = require("./redis/UserRedis.js");
@@ -44,17 +42,24 @@ app.use(sessions({
     resave: false,
 }));
 
-app.use(function (req, res, next) {
+app.use(async function (req, res, next) {
     try {
         let sessionId = req.sessionID;
-        UserRedis.refreshLogin(sessionId);
-    }catch (e) {
+        let refresh = await UserRedis.refreshLogin(sessionId);
+        // if(refresh === 0) {
+        //     ResHandler.fail(res,-1, "Please login first.");
+        //     return;
+        // }
+    } catch (e) {
         console.error(e);
+        ResHandler.fail(res, -2, e.message);
+        return;
     }
     next();
 })
 
 const LoginService = require("./services/LoginService.js");
+const RoomService = require("./services/RoomService.js");
 const ResHandler = require("./tools/ResHandler.js");
 
 let roomList = [
@@ -99,7 +104,9 @@ let roomList = [
         playerNum: 8
     }
 ];
-
+/*
+    Account
+ */
 app.post("/register", jsonParser, async function (req, res) {
     let ret = await LoginService.register(req, res).then();
     if (ret.err === 0) {
@@ -129,6 +136,68 @@ app.get("/is-login", jsonParser, async function (req, res) {
 
 app.post("/logout", jsonParser, async function (req, res) {
     let ret = await LoginService.logout(req, res).then();
+    if (ret.err === 0) {
+        ResHandler.success(res, ret.data);
+    } else {
+        ResHandler.fail(res, ret.err, ret.errMsg);
+    }
+});
+
+/*
+    Game
+ */
+
+app.get("/rooms", async function (req, res) {
+    let ret = await RoomService.queryRooms(req, res);
+    if (ret.err === 0) {
+        ResHandler.success(res, ret.data);
+    } else {
+        ResHandler.fail(res, ret.err, ret.errMsg);
+    }
+});
+
+app.get("/players/:id", async function (req, res) {
+    const roomId = Number(req.params.id);
+    let ret = await RoomService.queryPlayers(req, res, roomId);
+    if (ret.err === 0) {
+        ResHandler.success(res, ret.data);
+    } else {
+        ResHandler.fail(res, ret.err, ret.errMsg);
+    }
+});
+
+
+app.post("/create-room", jsonParser, async function (req, res) {
+    let ret = await RoomService.createRoom(req, res).then();
+    if (ret.err === 0) {
+        ResHandler.success(res, ret.data);
+    } else {
+        ResHandler.fail(res, ret.err, ret.errMsg);
+    }
+});
+
+app.get('/room-need-password/:roomKey', async (req, res) => {
+    const roomKey = req.params.roomKey;
+    let ret = await RoomService.needPassword(req, res, roomKey);
+    if (ret.err === 0) {
+        ResHandler.success(res, ret.data);
+    } else {
+        ResHandler.fail(res, ret.err, ret.errMsg);
+    }
+});
+
+app.get('/room-basic-info/:roomId', async (req, res) => {
+    const roomId = req.params.roomId;
+    let ret = await RoomService.fetchRoomBasicInfo(req, res, roomId);
+    if (ret.err === 0) {
+        ResHandler.success(res, ret.data);
+    } else {
+        ResHandler.fail(res, ret.err, ret.errMsg);
+    }
+});
+
+app.post("/enter-room", jsonParser, async function (req, res) {
+    let ret = await RoomService.enterRoom(req, res).then();
     if (ret.err === 0) {
         ResHandler.success(res, ret.data);
     } else {

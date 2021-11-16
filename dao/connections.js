@@ -5,6 +5,7 @@ redis_client.config('set', 'notify-keyspace-events', 'KEA');
 redis_client.subscribe('__keyevent@0__:expired');
 
 function redis_client_init() {
+    // TODO: Remove sessionTable, userTable, rooms
     redis_client.on('connect', function () {
         console.log('Redis Connected!'); // Connected!
     });
