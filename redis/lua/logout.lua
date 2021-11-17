@@ -7,4 +7,5 @@ if userId then
     redis.call("del", userTablePrefix .. userId)
 end
 redis.call("hdel", sessionTableKey, sessionId)
+redis.call("del", "sessionExpire:" .. sessionId)
 return true

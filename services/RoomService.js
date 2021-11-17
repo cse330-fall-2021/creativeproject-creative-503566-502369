@@ -73,6 +73,9 @@ let exported = {
     fetchRoomBasicInfo: async function (req, res, roomId) {
         try {
             let roomInfo = await RoomRedis.fetchRoomBasicInfo(roomId);
+            if(Object.keys(roomInfo).length === 0) {
+                return RetHandler.fail(1, "Room does not exist.");
+            }
             return RetHandler.success(roomInfo);
         } catch (e) {
             return RetHandler.fail(-2, e.message);
@@ -114,10 +117,10 @@ let exported = {
         let username = userInfo.username;
         let userRoomId = userInfo.roomId === undefined ? -1 : userInfo.roomId;
         try {
-            let exitRoom = Number(await RoomRedis.exitRoom(userId, username, userRoomId));
+            let exitRoom = await RoomRedis.exitRoom(userId, username, userRoomId);
             return RetHandler.success(exitRoom);
         } catch (e) {
-            return RetHandler.fail(-2, e.message);
+            return RetHandler.fail(-2, e);
         }
     },
 };
