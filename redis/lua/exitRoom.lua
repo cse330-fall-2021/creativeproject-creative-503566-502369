@@ -65,7 +65,7 @@ if isOwner then
             playerVal = allPlayers[i+1]
             start_i, end_j, substr = string.find(playerVal, ":")
             local playerPos = tonumber(string.sub(playerVal, 1, start_i - 1))
-            local playerReady = tonumber(string.sub(playerVal, start_i, -1))
+            local playerReady = tonumber(string.sub(playerVal, start_i + 1, -1))
             if playerPos == tonumber(pos) then
                 redis.call("hset", roomPrefix .. roomId, "roomOwner", playerKey)
                 redis.call("hset", playerPrefix .. roomId, playerKey, playerPos .. ":" .. 1)

@@ -173,8 +173,8 @@ let exported = {
     },
     changeSeat: function (userId, username, userRoomId, targetSeatIndex) {
         return new Promise(function (resolve, reject) {
-            redis_client.eval(fs.readFileSync(path.resolve(__dirname, './lua/changeSeat.lua')), 5,
-                PLAYERS_PREFIX, userId, username, userRoomId, targetSeatIndex,
+            redis_client.eval(fs.readFileSync(path.resolve(__dirname, './lua/changeSeat.lua')), 6,
+                ROOM_PREFIX, PLAYERS_PREFIX, userId, username, userRoomId, targetSeatIndex,
                 function (err, result) {
                     if (err) {
                         console.error(err);
@@ -183,6 +183,32 @@ let exported = {
                         resolve(result);
                     }
                 });
+        });
+    },
+    ready: function (userId, username, userRoomId) {
+        return new Promise(function (resolve, reject) {
+            redis_client.eval(fs.readFileSync(path.resolve(__dirname, './lua/ready.lua')), 5,
+                ROOM_PREFIX, PLAYERS_PREFIX, userId, username, userRoomId,
+                function (err, result) {
+                    if (err) {
+                        console.error(err);
+                        reject("Redis down");
+                    } else {
+                        resolve(result);
+                    }
+                });
+        });
+    },
+    isReady: function (userId, username, userRoomId) {
+        return new Promise(function (resolve, reject) {
+            redis_client.hget(PLAYERS_PREFIX + userRoomId, userId + ":" + username, function (err, result) {
+                if (err) {
+                    console.error(err);
+                    reject("Redis down");
+                } else {
+                    resolve(result);
+                }
+            })
         });
     },
 };

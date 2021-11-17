@@ -38,7 +38,7 @@ if exists == 1 then
           playerVal = players[i+1]
           start_i, end_j, substr = string.find(playerVal, ":")
           local playerPos = tonumber(string.sub(playerVal, 1, start_i - 1))
-          local playerReady = tonumber(string.sub(playerVal, start_i, -1))
+          local playerReady = tonumber(string.sub(playerVal, start_i + 1, -1))
           if playerPos == tonumber(pos) then
              flag = true
           end

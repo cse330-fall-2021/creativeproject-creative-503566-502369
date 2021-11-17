@@ -242,15 +242,22 @@ app.post("/change-seat", jsonParser, async function (req, res) {
     }
 });
 
-app.get("/room-owner/:id", function (req, res) {
-    let roomId = Number(req.params.id);
-    let roomOwnerIds = {
-        1: 99,
-        2: 12,
-        3: 13,
-        4: 14
+app.post("/ready", jsonParser, async function (req, res) {
+    let ret = await RoomService.ready(req, res).then();
+    if (ret.err === 0) {
+        ResHandler.success(res, ret.data);
+    } else {
+        ResHandler.fail(res, ret.err, ret.errMsg);
     }
-    res.json(JSON.stringify(roomOwnerIds[roomId]));
+});
+
+app.get("/is-ready", jsonParser, async function (req, res) {
+    let ret = await RoomService.isReady(req, res).then();
+    if (ret.err === 0) {
+        ResHandler.success(res, ret.data);
+    } else {
+        ResHandler.fail(res, ret.err, ret.errMsg);
+    }
 });
 
 app.get("/room-messages/:id", function (req, res) {

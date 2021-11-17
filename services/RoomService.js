@@ -79,7 +79,7 @@ let exported = {
     fetchOwner: async function (roomId) {
         try {
             let roomOwner = await RoomRedis.fetchRoomOwner(roomId);
-            if(roomOwner === null) {
+            if (roomOwner === null) {
                 return RetHandler.fail(1, "Room does not exist.");
             }
             let splitRoomOwner = roomOwner.split(":");
@@ -187,20 +187,69 @@ let exported = {
         let userId = userInfo.userId;
         let username = userInfo.username;
         let userRoomId = userInfo.roomId;
-        if(userRoomId === undefined) {
+        if (userRoomId === undefined) {
             return RetHandler.fail(3, "You are not in this room.");
         }
         try {
             let changeSeat = await RoomRedis.changeSeat(userId, username, userRoomId, targetSeatIndex);
-            if(changeSeat === 1) {
+            if (changeSeat === 1) {
                 return RetHandler.success(changeSeat);
-            } else if(changeSeat === -1) {
+            } else if (changeSeat === -1) {
                 return RetHandler.fail(1, "Room does not exist.");
-            } else if(changeSeat === -2) {
+            } else if (changeSeat === -2) {
                 return RetHandler.fail(2, "Seat change failure.");
             } else {
                 return RetHandler.fail(-1, "Unknown error.");
             }
+        } catch (e) {
+            return RetHandler.fail(-2, e);
+        }
+    },
+    ready: async function (req, res) {
+        let sessionId = req.sessionID;
+        let userInfo = await fetchBySessionId(sessionId);
+        if (!userInfo) {
+            return RetHandler.fail(-1, "Please login first.");
+        }
+        let userId = userInfo.userId;
+        let username = userInfo.username;
+        let userRoomId = userInfo.roomId;
+        if (userRoomId === undefined) {
+            return RetHandler.fail(3, "You are not in a room.");
+        }
+        try {
+            let ready = await RoomRedis.ready(userId, username, userRoomId);
+            if (ready === 1 || ready === 0) {
+                return RetHandler.success(ready);
+            } else if (ready === -1) {
+                return RetHandler.fail(1, "Room does not exist.");
+            } else {
+                return RetHandler.fail(-1, "Unknown error.");
+            }
+        } catch (e) {
+            return RetHandler.fail(-2, e);
+        }
+    },
+    isReady: async function (req, res) {
+        let sessionId = req.sessionID;
+        let userInfo = await fetchBySessionId(sessionId);
+        if (!userInfo) {
+            return RetHandler.fail(-1, "Please login first.");
+        }
+        let userId = userInfo.userId;
+        let username = userInfo.username;
+        let userRoomId = userInfo.roomId;
+        if (userRoomId === undefined) {
+            return RetHandler.fail(3, "You are not in a room.");
+        }
+        try {
+            let isReady = await RoomRedis.isReady(userId, username, userRoomId);
+            if (isReady === null || isReady === undefined || isReady === "" || !isReady) {
+                return RetHandler.fail(1, "You are not in a room.");
+            }
+            let split = isReady.split(":");
+            let ready = Number(split[1]);
+            return RetHandler.success(ready === 1);
         } catch (e) {
             return RetHandler.fail(-2, e);
         }
