@@ -11,11 +11,9 @@ local roomOwnerName = KEYS[9]
 local exists = redis.call("exists", userTablePrefix .. roomOwnerId)
 if exists == 1 then
     redis.call("hset", userTablePrefix .. roomOwnerId, "roomId", tonumber(roomId))
-    redis.call("hset", playerPrefix .. roomId, roomOwnerId .. ":" .. roomOwnerName, 1) --- 1 stands for ready.
-    redis.call("hmset", roomPrefix .. roomId..":"..roomName, "roomName", roomName, "roomPassword", roomPassword,
-     "roomId", roomId, "roomOwnerId", roomOwnerId)
-    redis.call("hmset", seatPrefix .. roomId, "0", roomOwnerId .. ":" .. roomOwnerName, "1", "", "2", "", "3", "",
-     "4", "", "5", "", "6", "", "7", "")
+    redis.call("hset", playerPrefix .. roomId, roomOwnerId .. ":" .. roomOwnerName, 0 .. ":" .. 1) --- 0 stands for pos 0, 1 stands for ready.
+    redis.call("hmset", roomPrefix .. roomId, "roomName", roomName, "roomPassword", roomPassword,
+     "roomId", roomId, "roomOwner", roomOwnerId .. ":" .. roomOwnerName)
     return 1
 else
     return 0

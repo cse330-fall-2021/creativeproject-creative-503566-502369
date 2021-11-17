@@ -10,24 +10,28 @@ const SEATS_PREFIX = "seats:";
 let exported = {
     queryRooms: function () {
         return new Promise(function (resolve, reject) {
-            redis_client.keys(ROOM_PREFIX + "*", function (err, rooms) {
-                if (err) {
-                    console.error(err);
-                    reject("Redis down");
-                } else {
-                    let ret = [];
-                    for (let i = 0; i < rooms.length; i++) {
-                        let roomSplit = rooms[i].split(":");
-                        let roomId = Number(roomSplit[1]);
-                        let roomName = roomSplit[2];
-                        ret.push({
-                            "roomId": roomId,
-                            "roomName": roomName,
-                        });
+            redis_client.eval(fs.readFileSync(path.resolve(__dirname, './lua/queryRooms.lua')), 1, ROOM_PREFIX,
+                function (err, result) {
+                    if (err) {
+                        console.error(err);
+                        reject("Redis down");
+                    } else {
+                        let ret = [];
+                        for (let i = 0; i < result.length; i++) {
+                            let oneRoom = result[i];
+                            let oneRet = {};
+                            for (let j = 0; j < oneRoom.length; j += 2) {
+                                if (oneRoom[j] === "roomId") {
+                                    oneRet[oneRoom[j]] = Number(oneRoom[j + 1]);
+                                } else {
+                                    oneRet[oneRoom[j]] = oneRoom[j + 1];
+                                }
+                            }
+                            ret.push(oneRet);
+                        }
+                        resolve(ret);
                     }
-                    resolve(ret);
-                }
-            })
+                });
         });
     },
     queryPlayers: function (roomId) {
@@ -50,6 +54,30 @@ let exported = {
                         }
                     }
                     resolve(ret);
+                }
+            })
+        });
+    },
+    fetchRoomOwner: function (roomId) {
+        return new Promise(function (resolve, reject) {
+            redis_client.hget(ROOM_PREFIX + roomId, "roomOwner", function (err, result) {
+                if (err) {
+                    console.error(err);
+                    reject("Redis down");
+                } else {
+                    resolve(result);
+                }
+            })
+        });
+    },
+    queryPlayersInfo: function (roomId) {
+        return new Promise(function (resolve, reject) {
+            redis_client.hgetall(PLAYERS_PREFIX + roomId, function (err, result) {
+                if (err) {
+                    console.error(err);
+                    reject("Redis down");
+                } else {
+                    resolve(result);
                 }
             })
         });
@@ -133,6 +161,20 @@ let exported = {
         return new Promise(function (resolve, reject) {
             redis_client.eval(fs.readFileSync(path.resolve(__dirname, './lua/exitRoom.lua')), 7,
                 USER_TABLE_PREFIX, ROOM_PREFIX, PLAYERS_PREFIX, SEATS_PREFIX, userRoomId, userId, username,
+                function (err, result) {
+                    if (err) {
+                        console.error(err);
+                        reject("Redis down");
+                    } else {
+                        resolve(result);
+                    }
+                });
+        });
+    },
+    changeSeat: function (userId, username, userRoomId, targetSeatIndex) {
+        return new Promise(function (resolve, reject) {
+            redis_client.eval(fs.readFileSync(path.resolve(__dirname, './lua/changeSeat.lua')), 5,
+                PLAYERS_PREFIX, userId, username, userRoomId, targetSeatIndex,
                 function (err, result) {
                     if (err) {
                         console.error(err);

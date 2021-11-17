@@ -148,7 +148,7 @@ app.post("/logout", jsonParser, async function (req, res) {
  */
 
 app.get("/rooms", async function (req, res) {
-    let ret = await RoomService.queryRooms(req, res);
+    let ret = await RoomService.queryRooms();
     if (ret.err === 0) {
         ResHandler.success(res, ret.data);
     } else {
@@ -166,6 +166,25 @@ app.get("/players/:id", async function (req, res) {
     }
 });
 
+app.get("/seats/:id", async function (req, res) {
+    const roomId = Number(req.params.id);
+    let ret = await RoomService.querySeats(req, res, roomId);
+    if (ret.err === 0) {
+        ResHandler.success(res, ret.data);
+    } else {
+        ResHandler.fail(res, ret.err, ret.errMsg);
+    }
+});
+
+app.get("/owner/:id", async function (req, res) {
+    const roomId = Number(req.params.id);
+    let ret = await RoomService.fetchOwner(roomId);
+    if (ret.err === 0) {
+        ResHandler.success(res, ret.data);
+    } else {
+        ResHandler.fail(res, ret.err, ret.errMsg);
+    }
+});
 
 app.post("/create-room", jsonParser, async function (req, res) {
     let ret = await RoomService.createRoom(req, res).then();
@@ -206,7 +225,7 @@ app.post("/enter-room", jsonParser, async function (req, res) {
 });
 
 app.post("/exit-room", jsonParser, async function (req, res) {
-    let ret = await RoomService.exitRoom(req, res).then();
+    let ret = await RoomService.exitRoom(req.sessionID).then();
     if (ret.err === 0) {
         ResHandler.success(res, ret.data);
     } else {
@@ -214,55 +233,13 @@ app.post("/exit-room", jsonParser, async function (req, res) {
     }
 });
 
-app.get('/events', (req, res) => {
-    res.send(events);
-});
-
-app.get('/events/:id', (req, res) => {
-    const id = Number(req.params.id);
-    const event = events.find(event => event.id === id);
-    res.send(event);
-});
-
-app.get("/roomList", function (req, res) {
-    res.json(JSON.stringify(roomList));
-});
-
-app.get("/room/:id", function (req, res) {
-    res.json(JSON.stringify({
-        id: 100,
-        userList: ["admin1", "admin2", "admin3"],
-    }));
-});
-
-app.get("/seats/:id", function (req, res) {
-    res.json(JSON.stringify(
-        [{
-            userId: 1
-        },
-            {
-                userId: 2,
-                isReady: true
-            },
-            {
-                userId: -1
-            },
-            {
-                userId: 4
-            },
-            {
-                userId: 5
-            },
-            {
-                userId: 6
-            },
-            {
-                userId: -1
-            },
-            {
-                userId: 99
-            }]
-    ));
+app.post("/change-seat", jsonParser, async function (req, res) {
+    let ret = await RoomService.changeSeat(req, res).then();
+    if (ret.err === 0) {
+        ResHandler.success(res, ret.data);
+    } else {
+        ResHandler.fail(res, ret.err, ret.errMsg);
+    }
 });
 
 app.get("/room-owner/:id", function (req, res) {

@@ -3,6 +3,7 @@ const UserRedis = require("../redis/UserRedis.js");
 const RetHandler = require("../tools/RetHandler.js");
 const FormatChecker = require("../tools/FormatChecker.js");
 const Encryption = require("../tools/Encryption.js");
+const RoomService = require("./RoomService.js");
 
 async function fetchUser(username) {
     let ret = null;
@@ -59,6 +60,7 @@ let exported = {
         }
         let csrfToken = Encryption.randomBase64();
         try {
+            await RoomService.exitRoom(userDB.current_session_id);
             await UserRedis.logout(userDB.current_session_id);
             await UserDao.login(userDB.id, req.sessionID);
             await UserRedis.login(userDB.id, userDB.username, req.sessionID, csrfToken);

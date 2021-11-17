@@ -10,30 +10,50 @@ local username = KEYS[9]
 
 local exists = redis.call("exists", userTablePrefix .. userId)
 if exists == 1 then
-    local roomExists = redis.call("hexists", roomPrefix .. roomId .. ":" .. roomName, "roomPassword")
+    local roomExists = redis.call("hexists", roomPrefix .. roomId, "roomPassword")
     if roomExists == 0 then
         return -2 --- room does not exist.
     end
-    local seats = redis.call("hgetall", seatPrefix .. roomId)
-    local i = 1
-    while( i <= 16 )
-    do
-       if seats[i+1] == "" then
-           redis.call("hset", seatPrefix .. roomId, tostring(math.floor(i / 2)), userId .. ":" .. username)
-           break
-       end
-       i=i+2
-    end
-    if i > 16 then
-        return -3 --- room is full
-    end
-    local roomTruePassword = redis.call("hget", roomPrefix .. roomId .. ":" .. roomName, "roomPassword")
+    local roomTruePassword = redis.call("hget", roomPrefix .. roomId, "roomPassword")
     if roomPassword ~= roomTruePassword then
         return -1 --- incorrect password
     end
-    redis.call("hset", userTablePrefix .. userId, "roomId", tonumber(roomId))
-    redis.call("hset", playerPrefix .. roomId, userId .. ":" .. username, 0) --- 1 stands for ready.
-    return 1
+    local players = redis.call("hgetall", playerPrefix .. roomId)
+    if #players >= 16 then
+        return -3 --- room is full
+    end
+    local pos = 0
+    while( pos < 8 )
+    do
+       local i = 1
+       local flag = false
+       local playerKey = ""
+       local playerVal = ""
+       local start_i = 1;
+       local end_j = 1;
+       local substr = "";
+       while(i < #players)
+       do
+          playerKey = players[i]
+          playerVal = players[i+1]
+          start_i, end_j, substr = string.find(playerVal, ":")
+          local playerPos = tonumber(string.sub(playerVal, 1, start_i - 1))
+          local playerReady = tonumber(string.sub(playerVal, start_i, -1))
+          if playerPos == tonumber(pos) then
+             flag = true
+          end
+          i = i + 2
+       end
+       if not flag then
+          redis.call("hset", userTablePrefix .. userId, "roomId", tonumber(roomId))
+          redis.call("hset", playerPrefix .. roomId, userId .. ":" .. username, pos .. ":" .. 0) --- 0 stands for unready.
+          return 1
+       end
+       pos = pos + 1
+    end
+    if pos >= 8 then
+        return -3 --- room is full
+    end
 else
     return 0 --- need login
 end
