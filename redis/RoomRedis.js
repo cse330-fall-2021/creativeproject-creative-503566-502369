@@ -21,7 +21,7 @@ let exported = {
                             let oneRoom = result[i];
                             let oneRet = {};
                             for (let j = 0; j < oneRoom.length; j += 2) {
-                                if (oneRoom[j] === "roomId") {
+                                if (oneRoom[j] === "roomId" || oneRoom[j] === "start") {
                                     oneRet[oneRoom[j]] = Number(oneRoom[j + 1]);
                                 } else {
                                     oneRet[oneRoom[j]] = oneRoom[j + 1];
@@ -209,6 +209,20 @@ let exported = {
                     resolve(result);
                 }
             })
+        });
+    },
+    play: function (userId, username, userRoomId) {
+        return new Promise(function (resolve, reject) {
+            redis_client.eval(fs.readFileSync(path.resolve(__dirname, './lua/play.lua')), 5,
+                ROOM_PREFIX, PLAYERS_PREFIX, userId, username, userRoomId,
+                function (err, result) {
+                    if (err) {
+                        console.error(err);
+                        reject("Redis down");
+                    } else {
+                        resolve(result);
+                    }
+                });
         });
     },
 };

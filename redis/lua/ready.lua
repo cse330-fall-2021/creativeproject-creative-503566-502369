@@ -9,6 +9,10 @@ local roomOwner = redis.call("hget", roomPrefix .. roomId, "roomOwner")
 if playerStatus == nil or roomOwner == nil then
     return -1
 end
+local gameStart = tonumber(redis.call("hget", roomPrefix .. roomId, "start"))
+if gameStart == 1 then
+    return -2
+end
 
 local start_i = -1
 local end_j = 1;

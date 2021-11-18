@@ -155,6 +155,8 @@ let exported = {
                 return RetHandler.fail(2, "Room does not exist.");
             } else if (enterRoom === -3) {
                 return RetHandler.fail(3, "Room is full.");
+            } else if (enterRoom === -4) {
+                return RetHandler.fail(4, "Game has started.");
             } else {
                 return RetHandler.success(roomId);
             }
@@ -198,6 +200,8 @@ let exported = {
                 return RetHandler.fail(1, "Room does not exist.");
             } else if (changeSeat === -2) {
                 return RetHandler.fail(2, "Seat change failure.");
+            } else if (changeSeat === -3) {
+                return RetHandler.fail(3, "Game has started.");
             } else {
                 return RetHandler.fail(-1, "Unknown error.");
             }
@@ -223,6 +227,8 @@ let exported = {
                 return RetHandler.success(ready);
             } else if (ready === -1) {
                 return RetHandler.fail(1, "Room does not exist.");
+            } else if (ready === -2) {
+                return RetHandler.fail(2, "Game has started.");
             } else {
                 return RetHandler.fail(-1, "Unknown error.");
             }
@@ -250,6 +256,41 @@ let exported = {
             let split = isReady.split(":");
             let ready = Number(split[1]);
             return RetHandler.success(ready === 1);
+        } catch (e) {
+            return RetHandler.fail(-2, e);
+        }
+    },
+    play: async function (req, res) {
+        let sessionId = req.sessionID;
+        let userInfo = await fetchBySessionId(sessionId);
+        if (!userInfo) {
+            return RetHandler.fail(-1, "Please login first.");
+        }
+        let userId = userInfo.userId;
+        let username = userInfo.username;
+        let userRoomId = userInfo.roomId;
+        if (userRoomId === undefined) {
+            return RetHandler.fail(3, "You are not in a room.");
+        }
+        try {
+            let play = await RoomRedis.play(userId, username, userRoomId);
+            if (play === 1) {
+                // TODO: init game state
+
+                return RetHandler.success(true);
+            } else if (play === -1) {
+                return RetHandler.fail(1, "Room does not exist.");
+            } else if (play === -2) {
+                return RetHandler.fail(2, "You are not the room owner.");
+            } else if (play === -3) {
+                return RetHandler.fail(3, "One or more players has not readied yet.");
+            } else if (play === -4) {
+                return RetHandler.fail(4, "Game can be started when there are at least 2 players.");
+            } else if (play === -5) {
+                return RetHandler.fail(5, "Game has started.");
+            } else {
+                return RetHandler.fail(-1, "Unknown error.");
+            }
         } catch (e) {
             return RetHandler.fail(-2, e);
         }

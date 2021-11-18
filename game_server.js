@@ -260,6 +260,15 @@ app.get("/is-ready", jsonParser, async function (req, res) {
     }
 });
 
+app.post("/play", jsonParser, async function (req, res) {
+    let ret = await RoomService.play(req, res).then();
+    if (ret.err === 0) {
+        ResHandler.success(res, ret.data);
+    } else {
+        ResHandler.fail(res, ret.err, ret.errMsg);
+    }
+});
+
 app.get("/room-messages/:id", function (req, res) {
     let roomId = Number(req.params.id);
     res.json(JSON.stringify([

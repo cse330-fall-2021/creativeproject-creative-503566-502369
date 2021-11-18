@@ -13,7 +13,7 @@ if exists == 1 then
     redis.call("hset", userTablePrefix .. roomOwnerId, "roomId", tonumber(roomId))
     redis.call("hset", playerPrefix .. roomId, roomOwnerId .. ":" .. roomOwnerName, 0 .. ":" .. 1) --- 0 stands for pos 0, 1 stands for ready.
     redis.call("hmset", roomPrefix .. roomId, "roomName", roomName, "roomPassword", roomPassword,
-     "roomId", roomId, "roomOwner", roomOwnerId .. ":" .. roomOwnerName)
+     "roomId", tonumber(roomId), "roomOwner", roomOwnerId .. ":" .. roomOwnerName, "start", 0)
     return 1
 else
     return 0

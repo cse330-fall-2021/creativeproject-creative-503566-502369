@@ -10,6 +10,10 @@ local username = KEYS[9]
 
 local exists = redis.call("exists", userTablePrefix .. userId)
 if exists == 1 then
+    local gameStart = tonumber(redis.call("hget", roomPrefix .. roomId, "start"))
+    if gameStart == 1 then
+        return -4
+    end
     local roomExists = redis.call("hexists", roomPrefix .. roomId, "roomPassword")
     if roomExists == 0 then
         return -2 --- room does not exist.
