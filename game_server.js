@@ -5,6 +5,7 @@ const urlencodedParser = bodyParser.urlencoded({extended: false});
 const cookieParser = require("cookie-parser");
 const sessions = require('express-session');
 const UserRedis = require("./redis/UserRedis.js");
+const {Server} = require("socket.io");
 
 let app = express();
 
@@ -62,48 +63,6 @@ const LoginService = require("./services/LoginService.js");
 const RoomService = require("./services/RoomService.js");
 const ResHandler = require("./tools/ResHandler.js");
 
-let roomList = [
-    {
-        id: 1,
-        name: "room123456789012345678901234567890", // 17 characters
-        playerNum: 1,
-    },
-    {
-        id: 2,
-        name: "room2",
-        playerNum: 2,
-    },
-    {
-        id: 3,
-        name: "room3",
-        playerNum: 3,
-    },
-    {
-        id: 4,
-        name: "room4",
-        playerNum: 4,
-    },
-    {
-        id: 5,
-        name: "room5",
-        playerNum: 5
-    },
-    {
-        id: 6,
-        name: "room6",
-        playerNum: 6
-    },
-    {
-        id: 7,
-        name: "room7",
-        playerNum: 7
-    },
-    {
-        id: 8,
-        name: "room8",
-        playerNum: 8
-    }
-];
 /*
     Account
  */
@@ -335,4 +294,24 @@ let server = app.listen(8081, function () {
     let host = server.address().address
     let port = server.address().port
     console.log("Serve on http://%s:%s", host, port)
+});
+
+const io = new Server(server, {
+    cors: {
+        origin: "http://localhost:8080",
+        methods: ["GET", "POST"],
+        allowedHeaders: ["socket-connection-header"],
+        credentials: true
+    }
+});
+app.set('socketio', io);
+
+io.on('connection', (socket) => {
+    console.log('a user connected');
+    socket.on('disconnect', function () {
+        console.log('A user disconnected');
+    });
+    socket.on("enterRoom", async function (data) {
+        console.log("enterRoom");
+    });
 });
