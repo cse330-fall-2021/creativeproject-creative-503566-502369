@@ -6,6 +6,15 @@ const cookieParser = require("cookie-parser");
 const sessions = require('express-session');
 const UserRedis = require("./redis/UserRedis.js");
 const {Server} = require("socket.io");
+const session = require("express-session")({
+    secret: "thisismysecrctekeyasdsdgwefq324saf121d",
+    saveUninitialized: true,
+    cookie: {
+        secure: false
+    },
+    resave: false,
+});
+const sharedSession = require("express-socket.io-session");
 
 let app = express();
 
@@ -25,23 +34,14 @@ app.use(function (req, res, next) {
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
     // Request headers you wish to allow
     res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,content-type');
-
     // Set to true if you need the website to include cookies in the requests sent
     // to the API (e.g. in case you use sessions)
     res.setHeader('Access-Control-Allow-Credentials', true);
-
     // Pass to next layer of middleware
     next();
 });
 
-app.use(sessions({
-    secret: "thisismysecrctekeyasdsdgwefq324saf121d",
-    saveUninitialized: true,
-    cookie: {
-        secure: false
-    },
-    resave: false,
-}));
+app.use(session);
 
 app.use(async function (req, res, next) {
     try {
@@ -146,7 +146,8 @@ app.get("/owner/:id", async function (req, res) {
 });
 
 app.post("/create-room", jsonParser, async function (req, res) {
-    let ret = await RoomService.createRoom(req, res).then();
+    let socketIO = req.app.get('socketio');
+    let ret = await RoomService.createRoom(req, res, socketIO).then();
     if (ret.err === 0) {
         ResHandler.success(res, ret.data);
     } else {
@@ -175,7 +176,8 @@ app.get('/room-basic-info/:roomId', async (req, res) => {
 });
 
 app.post("/enter-room", jsonParser, async function (req, res) {
-    let ret = await RoomService.enterRoom(req, res).then();
+    let socketIO = req.app.get('socketio');
+    let ret = await RoomService.enterRoom(req, res,socketIO).then();
     if (ret.err === 0) {
         ResHandler.success(res, ret.data);
     } else {
@@ -221,6 +223,16 @@ app.get("/is-ready", jsonParser, async function (req, res) {
 
 app.post("/play", jsonParser, async function (req, res) {
     let ret = await RoomService.play(req, res).then();
+    if (ret.err === 0) {
+        ResHandler.success(res, ret.data);
+    } else {
+        ResHandler.fail(res, ret.err, ret.errMsg);
+    }
+});
+
+app.post("/bind-room", jsonParser, async function (req, res) {
+    let socketIO = req.app.get('socketio');
+    let ret = await RoomService.bindRoom(req, res, socketIO).then();
     if (ret.err === 0) {
         ResHandler.success(res, ret.data);
     } else {
@@ -305,13 +317,28 @@ const io = new Server(server, {
     }
 });
 app.set('socketio', io);
+io.use(sharedSession(session));
 
-io.on('connection', (socket) => {
+io.on('connection', async (socket) => {
+    let sessionId = socket.handshake.session.id;
+    let socketId = socket.id;
+    try {
+        await UserRedis.bindSocketId(sessionId, socketId).then();
+    } catch (e) {
+        socket.disconnect(true);
+    }
     console.log('a user connected');
     socket.on('disconnect', function () {
         console.log('A user disconnected');
     });
-    socket.on("enterRoom", async function (data) {
-        console.log("enterRoom");
+    socket.on('disconnect', function () {
+        console.log('A user disconnected');
+    });
+    socket.on('chatMessage', function (data) {
+        let dataObj = JSON.parse(data);
+        let roomId = dataObj.roomId;
+        let msg = dataObj.msg;
+        // io.emit ('chatMessage', msg);
+        io.to(roomId.toString()).emit("chatMessage", msg);
     });
 });

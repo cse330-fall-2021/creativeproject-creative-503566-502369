@@ -70,6 +70,19 @@ let exported = {
             });
         });
     },
+    bindSocketId: function (sessionId, socketId) {
+        return new Promise(function (resolve, reject) {
+            redis_client.eval(fs.readFileSync(path.resolve(__dirname, './lua/bindSocketID.lua')), 4, SESSION_TABLE_KEY,
+                USER_TABLE_PREFIX, sessionId, socketId, function (err, result) {
+                if (err) {
+                    console.error(err);
+                    reject("Redis down");
+                } else {
+                    resolve(result);
+                }
+            });
+        });
+    },
 };
 
 module.exports = exported

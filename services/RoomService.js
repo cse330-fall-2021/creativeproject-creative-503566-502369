@@ -91,7 +91,7 @@ let exported = {
             return RetHandler.fail(-2, e.message);
         }
     },
-    createRoom: async function (req, res) {
+    createRoom: async function (req, res, socketIO) {
         let roomName = req.body.roomName;
         let roomPassword = req.body.roomPassword;
         let sessionId = req.sessionID;
@@ -104,6 +104,7 @@ let exported = {
             let createRoom = await RoomRedis.createAndEnterRoom(newRoomId, roomName, roomPassword, userInfo.userId,
                 userInfo.username);
             if (createRoom === 1) {
+                // TODO: bind socket to user
                 return RetHandler.success(newRoomId);
             } else {
                 return RetHandler.fail(-1, "Please login first.");
@@ -131,7 +132,7 @@ let exported = {
             return RetHandler.fail(-2, e.message);
         }
     },
-    enterRoom: async function (req, res) {
+    enterRoom: async function (req, res, socketIO) {
         let roomId = req.body.roomId;
         let roomName = req.body.roomName;
         let roomPassword = req.body.roomPassword;
@@ -158,6 +159,13 @@ let exported = {
             } else if (enterRoom === -4) {
                 return RetHandler.fail(4, "Game has started.");
             } else {
+                // TODO: bind socket to user
+                let skts = socketIO.sockets.sockets;
+                skts.forEach((tempSocket) => {
+                    if (tempSocket.id === userInfo.socketId) {
+                        tempSocket.join(roomId.toString());
+                    }
+                });
                 return RetHandler.success(roomId);
             }
         } catch (e) {
@@ -294,6 +302,25 @@ let exported = {
         } catch (e) {
             return RetHandler.fail(-2, e);
         }
+    },
+    bindRoom: async function (req, res, socketIO) {
+        let sessionId = req.sessionID;
+        let userInfo = await fetchBySessionId(sessionId);
+        if (!userInfo) {
+            return RetHandler.fail(-1, "Please login first.");
+        }
+        let userRoomId = userInfo.roomId;
+        let socketId = userInfo.socketId;
+        if (userRoomId === undefined || socketId === undefined) {
+            return RetHandler.fail(3, "You are not in a room.");
+        }
+        let skts = socketIO.sockets.sockets;
+        skts.forEach((tempSocket) => {
+            if (tempSocket.id === socketId) {
+                tempSocket.join(userRoomId.toString());
+            }
+        });
+        return RetHandler.success(true);
     },
 };
 

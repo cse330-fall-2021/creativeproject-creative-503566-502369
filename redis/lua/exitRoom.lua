@@ -11,7 +11,7 @@ if tonumber(roomId) == -1 then
 end
 
 --- Update user info
-redis.call("hdel", userTablePrefix .. userId, "roomId")
+redis.call("hdel", userTablePrefix .. userId, "roomId", "socketId")
 
 local roomInfo = redis.call("hgetall", roomPrefix .. roomId)
 if roomInfo == nil then
