@@ -114,9 +114,9 @@ let exported = {
             return RetHandler.fail(-2, e.message);
         }
     },
-    needPassword: async function (req, res, roomKey) {
+    needPassword: async function (req, res, roomId) {
         try {
-            let needPassword = await RoomRedis.needPassword(roomKey);
+            let needPassword = await RoomRedis.needPassword(roomId);
             return RetHandler.success(needPassword);
         } catch (e) {
             return RetHandler.fail(-2, e.message);
@@ -298,47 +298,16 @@ let exported = {
         try {
             let play = await RoomRedis.play(userId, username, userRoomId);
             if (play === 1) {
-                //TODO: init game state
-                // Random choose a word from database
-                let drawWord = await DrawWordsDao.fetchWord();
-                drawWord = drawWord[0].draw_word;
-                // Choose first player and send the word.
-                let players = await RoomRedis.queryPlayersInfo(userRoomId);
-                let targetPlayerId = -1;
-                let targetPlayerName = "";
-                let targetPlayerIndex = -1;
-                for (let i = 0; i < 8; i++) {
-                    let flag = false;
-                    for (let [key, val] of Object.entries(players)) {
-                        let keySplit = key.split(":");
-                        let valSplit = val.split(":");
-                        let playerId = Number(keySplit[0]);
-                        let playerName = keySplit[1];
-                        let playerIndex = Number(valSplit[0]);
-                        if (playerIndex === i) {
-                            flag = true;
-                            targetPlayerId = playerId;
-                            targetPlayerName = playerName;
-                            targetPlayerIndex = playerIndex;
-                            break;
-                        }
-                    }
-                    if (flag) {
-                        break;
-                    }
-                }
-                // Set room current answer.
-                let setAnswer = await RoomRedis.setAnswer(userRoomId, targetPlayerId, targetPlayerName,
-                    targetPlayerIndex, drawWord);
-                // Set expire key
-                let setAnswerExpire = await RoomRedis.setAnswerExpire(userRoomId, targetPlayerId, targetPlayerName,
-                    targetPlayerIndex, drawWord);
-                let targetPlayerSocketId = await UserRedis.fetchSocketId(targetPlayerId);
+                let result = await this.setNextRound(userRoomId, 0);
+                let targetPlayerSocketId = await UserRedis.fetchSocketId(result.playerId);
                 socketIO.to(userRoomId.toString()).emit("gameStart", JSON.stringify({
                     roomId: userRoomId,
                 }));
+                socketIO.to(userRoomId.toString()).emit("drawWord", JSON.stringify({
+                    word: "",
+                }));
                 socketIO.to(targetPlayerSocketId).emit("drawWord", JSON.stringify({
-                    word: drawWord,
+                    word: result.drawWord,
                 }));
                 return RetHandler.success(true);
             } else if (play === -1) {
@@ -400,6 +369,97 @@ let exported = {
             }
         }
         return RetHandler.success(ret);
+    },
+    getGameState: async function (req, res, roomId) {
+        let sessionId = req.sessionID;
+        let userInfo = await fetchBySessionId(sessionId);
+        if (!userInfo) {
+            return RetHandler.fail(-1, "Please login first.");
+        }
+        let userId = Number(userInfo.userId);
+        let roomInfo = null;
+        let expire = -2;
+        try {
+            roomInfo = await RoomRedis.fetchRoomBasicInfo(Number(roomId));
+        } catch (e) {
+            return RetHandler.fail(-2, e);
+        }
+        let ret = {};
+        let answer = roomInfo.answer;
+        let start = Number(roomInfo.start);
+        if (answer && start) {
+            try {
+                expire = await RoomRedis.getAnswerExpire(roomId, answer);
+            } catch (e) {
+                return RetHandler.fail(-2, e);
+            }
+            let splitAnswer = answer.split(":");
+            let drawPlayerId = Number(splitAnswer[0]);
+            if (drawPlayerId === userId) {
+                ret.drawWord = splitAnswer[3];
+            } else {
+                ret.drawWord = "";
+            }
+            ret.start = 1;
+            ret.countDown = Number(expire);
+        } else {
+            ret = {
+                start: 0,
+            }
+        }
+        return RetHandler.success(ret);
+    },
+    setNextRound: async function (roomId, roundIndex) {
+        let targetPlayerId = -1;
+        let targetPlayerName = "";
+        let targetPlayerIndex = -1;
+        let drawWord = "";
+        try {
+            // Random choose a word from database
+            drawWord = await DrawWordsDao.fetchWord();
+            drawWord = drawWord[0].draw_word;
+            // Choose first player and send the word.
+            let players = await RoomRedis.queryPlayersInfo(roomId);
+            for (let i = roundIndex; i < 8; i++) {
+                let flag = false;
+                for (let [key, val] of Object.entries(players)) {
+                    let keySplit = key.split(":");
+                    let valSplit = val.split(":");
+                    let playerId = Number(keySplit[0]);
+                    let playerName = keySplit[1];
+                    let playerIndex = Number(valSplit[0]);
+                    if (playerIndex === i) {
+                        flag = true;
+                        targetPlayerId = playerId;
+                        targetPlayerName = playerName;
+                        targetPlayerIndex = playerIndex;
+                        break;
+                    }
+                }
+                if (flag) {
+                    break;
+                }
+            }
+            if (targetPlayerId === -1) {
+                // All player have drawn. Game end.
+                return null;
+            }
+            // Set room current answer.
+            let setAnswer = await RoomRedis.setAnswer(roomId, targetPlayerId, targetPlayerName,
+                targetPlayerIndex, drawWord);
+            // Set expire key
+            let setAnswerExpire = await RoomRedis.setAnswerExpire(roomId, targetPlayerId, targetPlayerName,
+                targetPlayerIndex, drawWord);
+        } catch (e) {
+            console.error(e);
+            return null;
+        }
+        return {
+            playerId: targetPlayerId,
+            playerName: targetPlayerName,
+            playerIndex: targetPlayerIndex,
+            drawWord: drawWord,
+        };
     },
 };
 

@@ -3,7 +3,6 @@ const bodyParser = require('body-parser');
 const jsonParser = bodyParser.json();
 const urlencodedParser = bodyParser.urlencoded({extended: false});
 const cookieParser = require("cookie-parser");
-const sessions = require('express-session');
 const UserRedis = require("./redis/UserRedis.js");
 const {Server} = require("socket.io");
 const session = require("express-session")({
@@ -18,9 +17,6 @@ const sharedSession = require("express-socket.io-session");
 
 let app = express();
 
-// Init redis
-const connections = require("./dao/connections.js");
-connections.redis_client_init();
 
 // Middlewares
 // app.use(express.static('dist'))
@@ -156,9 +152,9 @@ app.post("/create-room", jsonParser, async function (req, res) {
     }
 });
 
-app.get('/room-need-password/:roomKey', async (req, res) => {
-    const roomKey = req.params.roomKey;
-    let ret = await RoomService.needPassword(req, res, roomKey);
+app.get('/room-need-password/:roomId', async (req, res) => {
+    const roomId = req.params.roomId;
+    let ret = await RoomService.needPassword(req, res, roomId);
     if (ret.err === 0) {
         ResHandler.success(res, ret.data);
     } else {
@@ -317,6 +313,16 @@ app.get("/room-messages/:id", function (req, res) {
     ]));
 });
 
+app.get("/game-state/:roomId", jsonParser, async function (req, res) {
+    const roomId = req.params.roomId;
+    let ret = await RoomService.getGameState(req, res, roomId).then();
+    if (ret.err === 0) {
+        ResHandler.success(res, ret.data);
+    } else {
+        ResHandler.fail(res, ret.err, ret.errMsg);
+    }
+});
+
 app.get("/is-test", jsonParser, async function (req, res) {
     let ret = await DrawWordsDao.fetchWord();
     ResHandler.success(res, ret[0].draw_word);
@@ -339,6 +345,10 @@ const io = new Server(server, {
 app.set('socketio', io);
 io.use(sharedSession(session));
 
+// Init redis
+const RedisInstance = require("./dao/RedisInstance.js");
+RedisInstance.redis_client_init(io);
+
 io.on('connection', async (socket) => {
     let sessionId = socket.handshake.session.id;
     let socketId = socket.id;
@@ -353,6 +363,12 @@ io.on('connection', async (socket) => {
     });
     socket.on('disconnect', function () {
         console.log('A user disconnected');
+    });
+    socket.on("sendPath", function(data) {
+        let dataObj = JSON.parse(data);
+        let roomId = dataObj.roomId;
+        let pathJSONString = dataObj.path;
+        io.to(roomId.toString()).emit("receivePath", pathJSONString);
     });
     socket.on('chatMessage', function (data) {
         let dataObj = JSON.parse(data);

@@ -109,9 +109,9 @@ let exported = {
                 });
         });
     },
-    needPassword: function (roomKey) {
+    needPassword: function (roomId) {
         return new Promise(function (resolve, reject) {
-            redis_client.hget(ROOM_PREFIX + roomKey, "roomPassword", function (err, result) {
+            redis_client.hget(ROOM_PREFIX + roomId, "roomPassword", function (err, result) {
                 if (err) {
                     console.error(err);
                     reject("Redis down");
@@ -226,6 +226,30 @@ let exported = {
                 });
         });
     },
+    setPlayHard: function (roomId, isStart) {
+        return new Promise(function (resolve, reject) {
+            redis_client.hset(ROOM_PREFIX + roomId, "start", isStart, function (err, result) {
+                if (err) {
+                    console.error(err);
+                    reject("Redis down");
+                } else {
+                    resolve(result);
+                }
+            });
+        });
+    },
+    delAnswerHard: function (roomId) {
+        return new Promise(function (resolve, reject) {
+            redis_client.hdel(ROOM_PREFIX + roomId, "answer", function (err, result) {
+                if (err) {
+                    console.error(err);
+                    reject("Redis down");
+                } else {
+                    resolve(result);
+                }
+            });
+        });
+    },
     setAnswer: function (roomId, drawId, drawName, drawIndex, drawAnswer) {
         return new Promise(function (resolve, reject) {
             redis_client.hset(ROOM_PREFIX + roomId, "answer", drawId + ":" + drawName + ":" + drawIndex
@@ -242,7 +266,19 @@ let exported = {
     setAnswerExpire: function (roomId, drawId, drawName, drawIndex, drawAnswer) {
         return new Promise(function (resolve, reject) {
             redis_client.set(ANSWER_EXPIRE_PREFIX + roomId + ":" + drawId + ":" + drawName + ":" + drawIndex
-                + ":" + drawAnswer, 1, 'EX', 60 * 2, function (err, result) {
+                + ":" + drawAnswer, 1, 'EX', 20, function (err, result) {
+                if (err) {
+                    console.error(err);
+                    reject("Redis down");
+                } else {
+                    resolve(result);
+                }
+            });
+        });
+    },
+    getAnswerExpire: function (roomId, AnswerKey) {
+        return new Promise(function (resolve, reject) {
+            redis_client.ttl(ANSWER_EXPIRE_PREFIX + roomId + ":" + AnswerKey, function (err, result) {
                 if (err) {
                     console.error(err);
                     reject("Redis down");
