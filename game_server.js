@@ -62,6 +62,7 @@ app.use(async function (req, res, next) {
 const LoginService = require("./services/LoginService.js");
 const RoomService = require("./services/RoomService.js");
 const ResHandler = require("./tools/ResHandler.js");
+const DrawWordsDao = require("./dao/DrawWordsDao.js");
 
 /*
     Account
@@ -177,7 +178,7 @@ app.get('/room-basic-info/:roomId', async (req, res) => {
 
 app.post("/enter-room", jsonParser, async function (req, res) {
     let socketIO = req.app.get('socketio');
-    let ret = await RoomService.enterRoom(req, res,socketIO).then();
+    let ret = await RoomService.enterRoom(req, res, socketIO).then();
     if (ret.err === 0) {
         ResHandler.success(res, ret.data);
     } else {
@@ -186,7 +187,8 @@ app.post("/enter-room", jsonParser, async function (req, res) {
 });
 
 app.post("/exit-room", jsonParser, async function (req, res) {
-    let ret = await RoomService.exitRoom(req.sessionID).then();
+    let socketIO = req.app.get('socketio');
+    let ret = await RoomService.exitRoom(req.sessionID, socketIO).then();
     if (ret.err === 0) {
         ResHandler.success(res, ret.data);
     } else {
@@ -195,7 +197,8 @@ app.post("/exit-room", jsonParser, async function (req, res) {
 });
 
 app.post("/change-seat", jsonParser, async function (req, res) {
-    let ret = await RoomService.changeSeat(req, res).then();
+    let socketIO = req.app.get('socketio');
+    let ret = await RoomService.changeSeat(req, res, socketIO).then();
     if (ret.err === 0) {
         ResHandler.success(res, ret.data);
     } else {
@@ -204,7 +207,8 @@ app.post("/change-seat", jsonParser, async function (req, res) {
 });
 
 app.post("/ready", jsonParser, async function (req, res) {
-    let ret = await RoomService.ready(req, res).then();
+    let socketIO = req.app.get('socketio');
+    let ret = await RoomService.ready(req, res, socketIO).then();
     if (ret.err === 0) {
         ResHandler.success(res, ret.data);
     } else {
@@ -222,7 +226,8 @@ app.get("/is-ready", jsonParser, async function (req, res) {
 });
 
 app.post("/play", jsonParser, async function (req, res) {
-    let ret = await RoomService.play(req, res).then();
+    let socketIO = req.app.get('socketio');
+    let ret = await RoomService.play(req, res, socketIO).then();
     if (ret.err === 0) {
         ResHandler.success(res, ret.data);
     } else {
@@ -233,6 +238,16 @@ app.post("/play", jsonParser, async function (req, res) {
 app.post("/bind-room", jsonParser, async function (req, res) {
     let socketIO = req.app.get('socketio');
     let ret = await RoomService.bindRoom(req, res, socketIO).then();
+    if (ret.err === 0) {
+        ResHandler.success(res, ret.data);
+    } else {
+        ResHandler.fail(res, ret.err, ret.errMsg);
+    }
+});
+
+app.get("/draw-word/:roomId", jsonParser, async function (req, res) {
+    const roomId = req.params.roomId;
+    let ret = await RoomService.getDrawWord(req, res, roomId).then();
     if (ret.err === 0) {
         ResHandler.success(res, ret.data);
     } else {
@@ -302,6 +317,11 @@ app.get("/room-messages/:id", function (req, res) {
     ]));
 });
 
+app.get("/is-test", jsonParser, async function (req, res) {
+    let ret = await DrawWordsDao.fetchWord();
+    ResHandler.success(res, ret[0].draw_word);
+});
+
 let server = app.listen(8081, function () {
     let host = server.address().address
     let port = server.address().port
@@ -338,7 +358,6 @@ io.on('connection', async (socket) => {
         let dataObj = JSON.parse(data);
         let roomId = dataObj.roomId;
         let msg = dataObj.msg;
-        // io.emit ('chatMessage', msg);
         io.to(roomId.toString()).emit("chatMessage", msg);
     });
 });

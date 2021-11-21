@@ -60,7 +60,7 @@ let exported = {
         }
         let csrfToken = Encryption.randomBase64();
         try {
-            await RoomService.exitRoom(userDB.current_session_id);
+            await RoomService.exitRoom(userDB.current_session_id, null);
             await UserRedis.logout(userDB.current_session_id);
             await UserDao.login(userDB.id, req.sessionID);
             await UserRedis.login(userDB.id, userDB.username, req.sessionID, csrfToken);

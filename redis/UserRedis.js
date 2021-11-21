@@ -28,7 +28,7 @@ let exported = {
                 } else {
                     resolve(results === 1);
                 }
-            })
+            });
         });
     },
     login: function (userId, username, sessionId, csrfToken) {
@@ -79,6 +79,17 @@ let exported = {
                     reject("Redis down");
                 } else {
                     resolve(result);
+                }
+            });
+        });
+    },
+    fetchSocketId:function (userId) {
+        return new Promise(function (resolve, reject) {
+            redis_client.hget(USER_TABLE_PREFIX + userId , "socketId", function (err, results) {
+                if (err) {
+                    reject("Redis down");
+                } else {
+                    resolve(results);
                 }
             });
         });

@@ -6,6 +6,7 @@ const USER_TABLE_PREFIX = "user:";
 const ROOM_PREFIX = "room:";
 const PLAYERS_PREFIX = "players:";
 const SEATS_PREFIX = "seats:";
+const ANSWER_EXPIRE_PREFIX = "AnswerEX:";
 
 let exported = {
     queryRooms: function () {
@@ -208,7 +209,7 @@ let exported = {
                 } else {
                     resolve(result);
                 }
-            })
+            });
         });
     },
     play: function (userId, username, userRoomId) {
@@ -223,6 +224,32 @@ let exported = {
                         resolve(result);
                     }
                 });
+        });
+    },
+    setAnswer: function (roomId, drawId, drawName, drawIndex, drawAnswer) {
+        return new Promise(function (resolve, reject) {
+            redis_client.hset(ROOM_PREFIX + roomId, "answer", drawId + ":" + drawName + ":" + drawIndex
+                + ":" + drawAnswer, function (err, result) {
+                if (err) {
+                    console.error(err);
+                    reject("Redis down");
+                } else {
+                    resolve(result);
+                }
+            });
+        });
+    },
+    setAnswerExpire: function (roomId, drawId, drawName, drawIndex, drawAnswer) {
+        return new Promise(function (resolve, reject) {
+            redis_client.set(ANSWER_EXPIRE_PREFIX + roomId + ":" + drawId + ":" + drawName + ":" + drawIndex
+                + ":" + drawAnswer, 1, 'EX', 60 * 2, function (err, result) {
+                if (err) {
+                    console.error(err);
+                    reject("Redis down");
+                } else {
+                    resolve(result);
+                }
+            });
         });
     },
 };

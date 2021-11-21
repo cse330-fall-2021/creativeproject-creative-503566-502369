@@ -4,6 +4,7 @@ const RetHandler = require("../tools/RetHandler.js");
 const FormatChecker = require("../tools/FormatChecker.js");
 const Encryption = require("../tools/Encryption.js");
 const RoomRedis = require("../redis/RoomRedis.js");
+const DrawWordsDao = require("../dao/DrawWordsDao.js");
 
 async function fetchBySessionId(sessionId) {
     let ret = null;
@@ -144,7 +145,7 @@ let exported = {
         if (Number(userInfo.roomId) === Number(roomId)) {
             return RetHandler.success(roomId);
         } else {
-            await this.exitRoom(sessionId);
+            await this.exitRoom(sessionId, socketIO);
         }
         try {
             let enterRoom = Number(await RoomRedis.enterRoom(roomId, roomPassword, userInfo.userId, roomName, userInfo.username));
@@ -166,13 +167,16 @@ let exported = {
                         tempSocket.join(roomId.toString());
                     }
                 });
+                socketIO.to(roomId.toString()).emit("refreshSeat", JSON.stringify({
+                    roomId: roomId,
+                }));
                 return RetHandler.success(roomId);
             }
         } catch (e) {
             return RetHandler.fail(-2, e.message);
         }
     },
-    exitRoom: async function (sessionId) {
+    exitRoom: async function (sessionId, socketIO) {
         let userInfo = await fetchBySessionId(sessionId);
         if (!userInfo) {
             return RetHandler.fail(-1, "Please login first.");
@@ -182,12 +186,17 @@ let exported = {
         let userRoomId = userInfo.roomId === undefined ? -1 : userInfo.roomId;
         try {
             let exitRoom = await RoomRedis.exitRoom(userId, username, userRoomId);
+            if (socketIO !== null) {
+                socketIO.to(userRoomId.toString()).emit("refreshSeat", JSON.stringify({
+                    roomId: userRoomId,
+                }));
+            }
             return RetHandler.success(exitRoom);
         } catch (e) {
             return RetHandler.fail(-2, e);
         }
     },
-    changeSeat: async function (req, res) {
+    changeSeat: async function (req, res, socketIO) {
         let sessionId = req.sessionID;
         let targetSeatIndex = req.body.targetSeatIndex;
         let userInfo = await fetchBySessionId(sessionId);
@@ -203,6 +212,9 @@ let exported = {
         try {
             let changeSeat = await RoomRedis.changeSeat(userId, username, userRoomId, targetSeatIndex);
             if (changeSeat === 1) {
+                socketIO.to(userRoomId.toString()).emit("refreshSeat", JSON.stringify({
+                    roomId: userRoomId,
+                }));
                 return RetHandler.success(changeSeat);
             } else if (changeSeat === -1) {
                 return RetHandler.fail(1, "Room does not exist.");
@@ -217,7 +229,7 @@ let exported = {
             return RetHandler.fail(-2, e);
         }
     },
-    ready: async function (req, res) {
+    ready: async function (req, res, socketIO) {
         let sessionId = req.sessionID;
         let userInfo = await fetchBySessionId(sessionId);
         if (!userInfo) {
@@ -232,6 +244,9 @@ let exported = {
         try {
             let ready = await RoomRedis.ready(userId, username, userRoomId);
             if (ready === 1 || ready === 0) {
+                socketIO.to(userRoomId.toString()).emit("refreshSeat", JSON.stringify({
+                    roomId: userRoomId,
+                }));
                 return RetHandler.success(ready);
             } else if (ready === -1) {
                 return RetHandler.fail(1, "Room does not exist.");
@@ -268,7 +283,7 @@ let exported = {
             return RetHandler.fail(-2, e);
         }
     },
-    play: async function (req, res) {
+    play: async function (req, res, socketIO) {
         let sessionId = req.sessionID;
         let userInfo = await fetchBySessionId(sessionId);
         if (!userInfo) {
@@ -283,8 +298,48 @@ let exported = {
         try {
             let play = await RoomRedis.play(userId, username, userRoomId);
             if (play === 1) {
-                // TODO: init game state
-
+                //TODO: init game state
+                // Random choose a word from database
+                let drawWord = await DrawWordsDao.fetchWord();
+                drawWord = drawWord[0].draw_word;
+                // Choose first player and send the word.
+                let players = await RoomRedis.queryPlayersInfo(userRoomId);
+                let targetPlayerId = -1;
+                let targetPlayerName = "";
+                let targetPlayerIndex = -1;
+                for (let i = 0; i < 8; i++) {
+                    let flag = false;
+                    for (let [key, val] of Object.entries(players)) {
+                        let keySplit = key.split(":");
+                        let valSplit = val.split(":");
+                        let playerId = Number(keySplit[0]);
+                        let playerName = keySplit[1];
+                        let playerIndex = Number(valSplit[0]);
+                        if (playerIndex === i) {
+                            flag = true;
+                            targetPlayerId = playerId;
+                            targetPlayerName = playerName;
+                            targetPlayerIndex = playerIndex;
+                            break;
+                        }
+                    }
+                    if (flag) {
+                        break;
+                    }
+                }
+                // Set room current answer.
+                let setAnswer = await RoomRedis.setAnswer(userRoomId, targetPlayerId, targetPlayerName,
+                    targetPlayerIndex, drawWord);
+                // Set expire key
+                let setAnswerExpire = await RoomRedis.setAnswerExpire(userRoomId, targetPlayerId, targetPlayerName,
+                    targetPlayerIndex, drawWord);
+                let targetPlayerSocketId = await UserRedis.fetchSocketId(targetPlayerId);
+                socketIO.to(userRoomId.toString()).emit("gameStart", JSON.stringify({
+                    roomId: userRoomId,
+                }));
+                socketIO.to(targetPlayerSocketId).emit("drawWord", JSON.stringify({
+                    word: drawWord,
+                }));
                 return RetHandler.success(true);
             } else if (play === -1) {
                 return RetHandler.fail(1, "Room does not exist.");
@@ -321,6 +376,30 @@ let exported = {
             }
         });
         return RetHandler.success(true);
+    },
+    getDrawWord: async function (req, res, roomId) {
+        let sessionId = req.sessionID;
+        let userInfo = await fetchBySessionId(sessionId);
+        if (!userInfo) {
+            return RetHandler.fail(-1, "Please login first.");
+        }
+        let userId = Number(userInfo.userId);
+        let roomInfo = null;
+        try {
+            roomInfo = await RoomRedis.fetchRoomBasicInfo(Number(roomId));
+        } catch (e) {
+            return RetHandler.fail(-2, e);
+        }
+        let ret = "";
+        let answer = roomInfo.answer;
+        if (answer) {
+            let splitAnswer = answer.split(":");
+            let drawPlayerId = Number(splitAnswer[0]);
+            if (drawPlayerId === userId) {
+                ret = splitAnswer[3];
+            }
+        }
+        return RetHandler.success(ret);
     },
 };
 
