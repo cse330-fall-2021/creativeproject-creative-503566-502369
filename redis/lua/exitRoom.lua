@@ -2,9 +2,10 @@ local userTablePrefix = KEYS[1]
 local roomPrefix = KEYS[2]
 local playerPrefix = KEYS[3]
 local seatPrefix = KEYS[4]
-local roomId = KEYS[5]
-local userId = KEYS[6]
-local username = KEYS[7]
+local scorePrefix = KEYS[5]
+local roomId = KEYS[6]
+local userId = KEYS[7]
+local username = KEYS[8]
 
 if tonumber(roomId) == -1 then
     return 0
@@ -12,6 +13,7 @@ end
 
 --- Update user info
 redis.call("hdel", userTablePrefix .. userId, "roomId", "socketId")
+redis.call("del", scorePrefix .. roomId);
 
 local roomInfo = redis.call("hgetall", roomPrefix .. roomId)
 if roomInfo == nil then

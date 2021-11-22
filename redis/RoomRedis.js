@@ -6,7 +6,10 @@ const USER_TABLE_PREFIX = "user:";
 const ROOM_PREFIX = "room:";
 const PLAYERS_PREFIX = "players:";
 const SEATS_PREFIX = "seats:";
-const ANSWER_EXPIRE_PREFIX = "AnswerEX:";
+const ANSWER_EXPIRE_PREFIX = "answerEX:";
+const SCORE_PREFIX = "scores:";
+const ANSWER_COUNT_PREFIX = "answerCount:";
+
 
 let exported = {
     queryRooms: function () {
@@ -160,8 +163,8 @@ let exported = {
     },
     exitRoom: function (userId, username, userRoomId) {
         return new Promise(function (resolve, reject) {
-            redis_client.eval(fs.readFileSync(path.resolve(__dirname, './lua/exitRoom.lua')), 7,
-                USER_TABLE_PREFIX, ROOM_PREFIX, PLAYERS_PREFIX, SEATS_PREFIX, userRoomId, userId, username,
+            redis_client.eval(fs.readFileSync(path.resolve(__dirname, './lua/exitRoom.lua')), 8,
+                USER_TABLE_PREFIX, ROOM_PREFIX, PLAYERS_PREFIX, SEATS_PREFIX, SCORE_PREFIX, userRoomId, userId, username,
                 function (err, result) {
                     if (err) {
                         console.error(err);
@@ -215,8 +218,8 @@ let exported = {
     gameOver: function (roomId) {
         // Unready all players except the room owner, set gameStart = 0, delete answer
         return new Promise(function (resolve, reject) {
-            redis_client.eval(fs.readFileSync(path.resolve(__dirname, './lua/gameOver.lua')), 3, ROOM_PREFIX,
-                PLAYERS_PREFIX, roomId, function (err, result) {
+            redis_client.eval(fs.readFileSync(path.resolve(__dirname, './lua/gameOver.lua')), 4, ROOM_PREFIX,
+                PLAYERS_PREFIX, SCORE_PREFIX, roomId, function (err, result) {
                     if (err) {
                         console.error(err);
                         reject("Redis down");
@@ -238,30 +241,6 @@ let exported = {
                         resolve(result);
                     }
                 });
-        });
-    },
-    setPlayHard: function (roomId, isStart) {
-        return new Promise(function (resolve, reject) {
-            redis_client.hset(ROOM_PREFIX + roomId, "start", isStart, function (err, result) {
-                if (err) {
-                    console.error(err);
-                    reject("Redis down");
-                } else {
-                    resolve(result);
-                }
-            });
-        });
-    },
-    delAnswerHard: function (roomId) {
-        return new Promise(function (resolve, reject) {
-            redis_client.hdel(ROOM_PREFIX + roomId, "answer", function (err, result) {
-                if (err) {
-                    console.error(err);
-                    reject("Redis down");
-                } else {
-                    resolve(result);
-                }
-            });
         });
     },
     setAnswer: function (roomId, drawId, drawName, drawIndex, drawAnswer) {
@@ -302,6 +281,32 @@ let exported = {
             });
         });
     },
+    updateScore: function (roomId, userId, answerKey) {
+        return new Promise(function (resolve, reject) {
+            redis_client.eval(fs.readFileSync(path.resolve(__dirname, './lua/updateScore.lua')), 5, SCORE_PREFIX,
+                ANSWER_COUNT_PREFIX, roomId, userId, answerKey, function (err, result) {
+                    if (err) {
+                        console.error(err);
+                        reject("Redis down");
+                    } else {
+                        resolve(result);
+                    }
+                });
+        });
+    },
+    updatePainterScore: function (roomId, userId, answerKey) {
+        return new Promise(function (resolve, reject) {
+            redis_client.eval(fs.readFileSync(path.resolve(__dirname, './lua/updatePainterScore.lua')), 5, SCORE_PREFIX,
+                ANSWER_COUNT_PREFIX, roomId, userId, answerKey, function (err, result) {
+                    if (err) {
+                        console.error(err);
+                        reject("Redis down");
+                    } else {
+                        resolve(result);
+                    }
+                });
+        });
+    }
 };
 
 module.exports = exported

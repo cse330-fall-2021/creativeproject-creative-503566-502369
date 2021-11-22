@@ -480,7 +480,17 @@ let exported = {
             answer = (answer.split(":"))[3];
             correct = answer.toLowerCase() === message.toLowerCase();
             if (correct) {
-                message = "**** (Correct answer!).";
+                // Get and save score
+                let score = 0
+                try{
+                    score = await RoomRedis.updateScore(roomId, userInfo.userId, roomInfo.answer);
+                    if(score === -1) {
+                        return RetHandler.success(correct);
+                    }
+                }catch (e) {
+                    return RetHandler.fail(-2, e);
+                }
+                message = "**** (Correct answer! +" + score + "points).";
             }
         }
         let publishMsg = {

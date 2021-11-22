@@ -16,7 +16,7 @@ function redis_client_init(socketIO) {
         let keys = key.split(':');
         if (keys[0] === "sessionExpire") {
             UserRedis.logout(keys[1]);
-        } else if (keys[0] === "AnswerEX") {
+        } else if (keys[0] === "answerEX") {
             let roomId = Number(keys[1]);
             let roomInfo = await RoomRedis.fetchRoomBasicInfo(roomId);
             if (Object.keys(roomInfo).length === 0) {
@@ -26,17 +26,20 @@ function redis_client_init(socketIO) {
             let playerName = keys[3];
             let playerIndex = Number(keys[4]);
             let playerAnswer = keys[5];
+            await RoomRedis.updatePainterScore(roomId, playerId, playerId + ":" + playerName + ":" + playerIndex
+                + ":" + playerAnswer)
             if (playerIndex + 1 === 8) {
-                //TODO: game over
-                // Send game result to front end.
                 try {
-                    await RoomRedis.gameOver(roomId);
+                    // Send game result to front end.
+                    let scores = await RoomRedis.gameOver(roomId);
+                    let players = await RoomRedis.queryPlayers(roomId);
+                    scores = parseScores(scores, players);
+                    socketIO.to(roomId.toString()).emit("gameOver", JSON.stringify({
+                        scores: scores,
+                    }));
                 } catch (e) {
                     console.error(e);
                 }
-                socketIO.to(roomId.toString()).emit("gameOver", JSON.stringify({
-                    word: "OVER",
-                }));
             } else {
                 // Next round
                 socketIO.to(roomId.toString()).emit("answer", JSON.stringify({
@@ -44,16 +47,17 @@ function redis_client_init(socketIO) {
                 }));
                 let result = await RoomService.setNextRound(roomId, playerIndex + 1);
                 if (result === null) {
-                    //TODO: game over
-                    // Send game result to front end.
                     try {
-                        await RoomRedis.gameOver(roomId);
+                        // Send game result to front end.
+                        let scores = await RoomRedis.gameOver(roomId);
+                        let players = await RoomRedis.queryPlayers(roomId);
+                        scores = parseScores(scores, players);
+                        socketIO.to(roomId.toString()).emit("gameOver", JSON.stringify({
+                            scores: scores,
+                        }));
                     } catch (e) {
                         console.error(e);
                     }
-                    socketIO.to(roomId.toString()).emit("gameOver", JSON.stringify({
-                        word: "OVER",
-                    }));
                 } else {
                     let targetPlayerSocketId = await UserRedis.fetchSocketId(result.playerId);
                     socketIO.to(roomId.toString()).emit("drawWord", JSON.stringify({
@@ -66,6 +70,21 @@ function redis_client_init(socketIO) {
             }
         }
     });
+}
+
+function parseScores(scores, players) {
+    let ret = {};
+    for (let [key, val] of Object.entries(players)) {
+        ret[val.userId] = {
+            userId: val.userId,
+            username: val.username,
+            score: 0,
+        }
+    }
+    for (let i = 0; i < scores.length; i += 2) {
+        ret[Number(scores[i])].score = Number(scores[i + 1]);
+    }
+    return ret;
 }
 
 module.exports = {redis_client, redis_client_init}
