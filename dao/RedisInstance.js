@@ -30,8 +30,7 @@ function redis_client_init(socketIO) {
                 //TODO: game over
                 // Send game result to front end.
                 try {
-                    await RoomRedis.setPlayHard(roomId, 0);
-                    await RoomRedis.delAnswerHard(roomId);
+                    await RoomRedis.gameOver(roomId);
                 } catch (e) {
                     console.error(e);
                 }
@@ -48,8 +47,7 @@ function redis_client_init(socketIO) {
                     //TODO: game over
                     // Send game result to front end.
                     try {
-                        await RoomRedis.setPlayHard(roomId, 0);
-                        await RoomRedis.delAnswerHard(roomId);
+                        await RoomRedis.gameOver(roomId);
                     } catch (e) {
                         console.error(e);
                     }

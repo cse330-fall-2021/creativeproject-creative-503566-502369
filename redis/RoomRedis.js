@@ -212,6 +212,20 @@ let exported = {
             });
         });
     },
+    gameOver: function (roomId) {
+        // Unready all players except the room owner, set gameStart = 0, delete answer
+        return new Promise(function (resolve, reject) {
+            redis_client.eval(fs.readFileSync(path.resolve(__dirname, './lua/gameOver.lua')), 3, ROOM_PREFIX,
+                PLAYERS_PREFIX, roomId, function (err, result) {
+                    if (err) {
+                        console.error(err);
+                        reject("Redis down");
+                    } else {
+                        resolve(result);
+                    }
+                });
+        });
+    },
     play: function (userId, username, userRoomId) {
         return new Promise(function (resolve, reject) {
             redis_client.eval(fs.readFileSync(path.resolve(__dirname, './lua/play.lua')), 5,
