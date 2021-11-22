@@ -160,13 +160,6 @@ let exported = {
             } else if (enterRoom === -4) {
                 return RetHandler.fail(4, "Game has started.");
             } else {
-                // TODO: bind socket to user
-                let skts = socketIO.sockets.sockets;
-                skts.forEach((tempSocket) => {
-                    if (tempSocket.id === userInfo.socketId) {
-                        tempSocket.join(roomId.toString());
-                    }
-                });
                 socketIO.to(roomId.toString()).emit("refreshSeat", JSON.stringify({
                     roomId: roomId,
                 }));
@@ -336,7 +329,7 @@ let exported = {
         let userRoomId = userInfo.roomId;
         let socketId = userInfo.socketId;
         if (userRoomId === undefined || socketId === undefined) {
-            return RetHandler.fail(3, "You are not in a room.");
+            return RetHandler.fail(1, "You are not in a room.");
         }
         let skts = socketIO.sockets.sockets;
         skts.forEach((tempSocket) => {
