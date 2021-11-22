@@ -454,6 +454,43 @@ let exported = {
             drawWord: drawWord,
         };
     },
+    async sendMessage(req, res, socketIO) {
+        let message = req.body.message;
+        if(!message || message === "") {
+            return RetHandler.success(false);
+        }
+        let sessionId = req.sessionID;
+        let userInfo = await fetchBySessionId(sessionId);
+        if (!userInfo) {
+            return RetHandler.fail(-1, "Please login first.");
+        }
+        let roomId = Number(userInfo.roomId);
+        let roomInfo = {};
+        try {
+            roomInfo = await RoomRedis.fetchRoomBasicInfo(roomId);
+        } catch (e) {
+            return RetHandler.fail(-2, e);
+        }
+        if (Object.keys(roomInfo).length === 0) {
+            return RetHandler.fail(1, "Room does not exist.");
+        }
+        let answer = roomInfo.answer;
+        let correct = false;
+        if (answer) {
+            answer = (answer.split(":"))[3];
+            correct = answer.toLowerCase() === message.toLowerCase();
+            if (correct) {
+                message = "**** (Correct answer!).";
+            }
+        }
+        let publishMsg = {
+            message: message,
+            userId: userInfo.userId,
+            username: userInfo.username,
+        };
+        socketIO.to(roomId.toString()).emit("message", JSON.stringify(publishMsg));
+        return RetHandler.success(correct);
+    },
 };
 
 module.exports = exported

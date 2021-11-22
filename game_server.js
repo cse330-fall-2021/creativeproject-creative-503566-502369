@@ -251,65 +251,26 @@ app.get("/draw-word/:roomId", jsonParser, async function (req, res) {
     }
 });
 
+app.post("/send-message", async function (req, res) {
+    let socketIO = req.app.get('socketio');
+    let ret = await RoomService.sendMessage(req, res, socketIO).then();
+    if (ret.err === 0) {
+        ResHandler.success(res, ret.data);
+    } else {
+        ResHandler.fail(res, ret.err, ret.errMsg);
+    }
+});
+
 app.get("/room-messages/:id", function (req, res) {
     let roomId = Number(req.params.id);
     res.json(JSON.stringify([
-        {
-            id: 1,
-            content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Etiam semper diam at erat pulvinar, at pulvinar\n" +
-                "            felis blandit. Vestibulum volutpat tellus diam, consequat gravida libero rhoncus ut. Morbi maximus, leo sit\n" +
-                "            amet vehicula eleifend, nunc dui porta orci, quis semper odio felis ut quam.",
-            username: "E-Doz"
-        },
-        {
-            id: 2,
-            content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Etiam semper diam at erat pulvinar, at pulvinar\n" +
-                "            felis blandit. Vestibulum volutpat tellus diam, consequat gravida libero rhoncus ut. Morbi maximus, leo sit\n" +
-                "            amet vehicula eleifend, nunc dui porta orci, quis semper odio felis ut quam.",
-            username: "E-Doz"
-        },
-        {
-            id: 3,
-            content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Etiam semper diam at erat pulvinar, at pulvinar\n" +
-                "            felis blandit. Vestibulum volutpat tellus diam, consequat gravida libero rhoncus ut. Morbi maximus, leo sit\n" +
-                "            amet vehicula eleifend, nunc dui porta orci, quis semper odio felis ut quam.",
-            username: "E-Doz"
-        },
-        {
-            id: 4,
-            content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Etiam semper diam at erat pulvinar, at pulvinar\n" +
-                "            felis blandit. Vestibulum volutpat tellus diam, consequat gravida libero rhoncus ut. Morbi maximus, leo sit\n" +
-                "            amet vehicula eleifend, nunc dui porta orci, quis semper odio felis ut quam.",
-            username: "E-Doz"
-        },
-        {
-            id: 5,
-            content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Etiam semper diam at erat pulvinar, at pulvinar\n" +
-                "            felis blandit. Vestibulum volutpat tellus diam, consequat gravida libero rhoncus ut. Morbi maximus, leo sit\n" +
-                "            amet vehicula eleifend, nunc dui porta orci, quis semper odio felis ut quam.",
-            username: "E-Doz"
-        },
-        {
-            id: 6,
-            content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Etiam semper diam at erat pulvinar, at pulvinar\n" +
-                "            felis blandit. Vestibulum volutpat tellus diam, consequat gravida libero rhoncus ut. Morbi maximus, leo sit\n" +
-                "            amet vehicula eleifend, nunc dui porta orci, quis semper odio felis ut quam.",
-            username: "E-Doz"
-        },
-        {
-            id: 7,
-            content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Etiam semper diam at erat pulvinar, at pulvinar\n" +
-                "            felis blandit. Vestibulum volutpat tellus diam, consequat gravida libero rhoncus ut. Morbi maximus, leo sit\n" +
-                "            amet vehicula eleifend, nunc dui porta orci, quis semper odio felis ut quam.",
-            username: "E-Doz"
-        },
-        {
-            id: 8,
-            content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Etiam semper diam at erat pulvinar, at pulvinar\n" +
-                "            felis blandit. Vestibulum volutpat tellus diam, consequat gravida libero rhoncus ut. Morbi maximus, leo sit\n" +
-                "            amet vehicula eleifend, nunc dui porta orci, quis semper odio felis ut quam.",
-            username: "E-Doz"
-        },
+        // {
+        //     id: 1,
+        //     message: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Etiam semper diam at erat pulvinar, at pulvinar\n" +
+        //         "            felis blandit. Vestibulum volutpat tellus diam, consequat gravida libero rhoncus ut. Morbi maximus, leo sit\n" +
+        //         "            amet vehicula eleifend, nunc dui porta orci, quis semper odio felis ut quam.",
+        //     username: "E-Doz"
+        // },
     ]));
 });
 
@@ -364,16 +325,10 @@ io.on('connection', async (socket) => {
     socket.on('disconnect', function () {
         console.log('A user disconnected');
     });
-    socket.on("sendPath", function(data) {
+    socket.on("sendPath", function (data) {
         let dataObj = JSON.parse(data);
         let roomId = dataObj.roomId;
         let pathJSONString = dataObj.path;
         io.to(roomId.toString()).emit("receivePath", pathJSONString);
-    });
-    socket.on('chatMessage', function (data) {
-        let dataObj = JSON.parse(data);
-        let roomId = dataObj.roomId;
-        let msg = dataObj.msg;
-        io.to(roomId.toString()).emit("chatMessage", msg);
     });
 });
