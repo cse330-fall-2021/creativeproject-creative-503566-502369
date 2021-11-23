@@ -18,7 +18,6 @@ const cors = require("cors");
 
 let app = express();
 
-
 // Middlewares
 // app.use(express.static('dist'))
 app.use(bodyParser.json());
@@ -72,6 +71,17 @@ const RoomService = require("./services/RoomService.js");
 const ResHandler = require("./tools/ResHandler.js");
 const DrawWordsDao = require("./dao/DrawWordsDao.js");
 
+
+/*
+    Static
+ */
+// app.use('/public', express.static('static'));
+console.log(__dirname + '/dist');
+app.use(express.static(__dirname + '/dist'));
+
+app.get('/', function (req, res) {
+    res.send("Hello There!");
+});
 /*
     Account
  */
