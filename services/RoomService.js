@@ -5,6 +5,9 @@ const FormatChecker = require("../tools/FormatChecker.js");
 const Encryption = require("../tools/Encryption.js");
 const RoomRedis = require("../redis/RoomRedis.js");
 const DrawWordsDao = require("../dao/DrawWordsDao.js");
+const fs = require("fs");
+const path = require('path');
+const SERVER_CONSTANTS = require("../consts/ServerConstants.js");
 
 async function fetchBySessionId(sessionId) {
     let ret = null;
@@ -456,7 +459,7 @@ let exported = {
     },
     async sendMessage(req, res, socketIO) {
         let message = req.body.message;
-        if(!message || message === "") {
+        if (!message || message === "") {
             return RetHandler.success(false);
         }
         let sessionId = req.sessionID;
@@ -474,23 +477,31 @@ let exported = {
         if (Object.keys(roomInfo).length === 0) {
             return RetHandler.fail(1, "Room does not exist.");
         }
-        let answer = roomInfo.answer;
+        let answerKey = roomInfo.answer;
         let correct = false;
-        if (answer) {
-            answer = (answer.split(":"))[3];
+        if (answerKey) {
+            let splitAnswerKey = answerKey.split(":");
+            let answer = splitAnswerKey[3];
+            let drawId = Number(splitAnswerKey[0]);
+            if (drawId === Number(userInfo.userId)) {
+                // Painter should not send message during drawing.
+                return RetHandler.success(false);
+            }
             correct = answer.toLowerCase() === message.toLowerCase();
             if (correct) {
                 // Get and save score
                 let score = 0
-                try{
+                try {
                     score = await RoomRedis.updateScore(roomId, userInfo.userId, roomInfo.answer);
-                    if(score === -1) {
+                    if (score === -1) {
                         return RetHandler.success(correct);
                     }
-                }catch (e) {
+                    await RoomRedis.updateRoundState(roomId, answerKey, 1);
+                } catch (e) {
                     return RetHandler.fail(-2, e);
                 }
                 message = "**** (Correct answer! +" + score + "points).";
+                // End this turn while all players answer correctly
             }
         }
         let publishMsg = {
@@ -500,6 +511,70 @@ let exported = {
         };
         socketIO.to(roomId.toString()).emit("message", JSON.stringify(publishMsg));
         return RetHandler.success(correct);
+    },
+    async saveImage(req, res, rootPath) {
+        let sessionId = req.sessionID;
+        let userInfo = await fetchBySessionId(sessionId);
+        if (!userInfo) {
+            return RetHandler.fail(-1, "Please login first.");
+        }
+        let userId = userInfo.userId;
+        let userDir = path.join(rootPath, "userImages", userId);
+        if (!fs.existsSync(userDir)) {
+            fs.mkdirSync(userDir, (err) => {
+                if (err) {
+                    return console.error(err);
+                }
+            });
+            console.log('Directory --/userImages/' + userId + '/ created successfully!');
+        }
+        let image = req.body.image;
+        let word = req.body.word;
+        let base64Data = image.replace(/^data:image\/png;base64,/, "");
+        let timestamp = Date.now();
+        let filename = word + "_" + timestamp + ".png";
+        let filePath = path.join(userDir, filename);
+        fs.writeFile(filePath, base64Data, 'base64', function (err) {
+            console.log(err);
+        });
+        return RetHandler.success(filename);
+    },
+    async fetchImages(req, res, rootPath) {
+        let sessionId = req.sessionID;
+        let userInfo = await fetchBySessionId(sessionId);
+        if (!userInfo) {
+            return RetHandler.fail(-1, "Please login first.");
+        }
+        let userId = userInfo.userId;
+        let userDir = path.join(rootPath, "userImages", userId);
+        if (!fs.existsSync(userDir)) {
+            fs.mkdirSync(userDir, (err) => {
+                if (err) {
+                    return console.error(err);
+                }
+            });
+            console.log('Directory --/userImages/' + userId + '/ created successfully!');
+        }
+        let ret = [];
+        fs.readdirSync(userDir).forEach(file => {
+            ret.push({
+                url: SERVER_CONSTANTS.SERVER_ADDR + "/userImages/" + userId + "/" + file,
+                word: file.split("_")[0],
+            });
+        });
+        return RetHandler.success(ret);
+    },
+    async fetchRoomIn(req, res) {
+        let sessionId = req.sessionID;
+        let userInfo = await fetchBySessionId(sessionId);
+        if (!userInfo) {
+            return RetHandler.fail(-1, "Please login first.");
+        }
+        let roomIn = Number(userInfo.roomId);
+        if (!roomIn || isNaN(roomIn)) {
+            roomIn = -1;
+        }
+        return RetHandler.success(roomIn);
     },
 };
 
