@@ -91,6 +91,7 @@ let exported = {
     logout: async function (req, res) {
         let sessionId = req.sessionID;
         try {
+            await RoomService.exitRoom(sessionId, null);
             await UserRedis.logout(sessionId);
         } catch (e) {
             console.error(e.message);

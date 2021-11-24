@@ -1,4 +1,6 @@
 let express = require('express');
+const fs = require('fs');
+const path = require('path');
 const bodyParser = require('body-parser');
 const jsonParser = bodyParser.json();
 const urlencodedParser = bodyParser.urlencoded({extended: false});
@@ -71,13 +73,21 @@ const RoomService = require("./services/RoomService.js");
 const ResHandler = require("./tools/ResHandler.js");
 const DrawWordsDao = require("./dao/DrawWordsDao.js");
 
-
 /*
     Static
  */
 // app.use('/public', express.static('static'));
 console.log(__dirname + '/dist');
 app.use(express.static(__dirname + '/dist'));
+
+if (!fs.existsSync(path.join(__dirname, "dist", 'userImages'))) {
+    fs.mkdirSync(path.join(__dirname, "dist", 'userImages'), (err) => {
+        if (err) {
+            return console.error(err);
+        }
+        console.log('Directory -- /userImages created successfully!');
+    });
+}
 
 app.get('/', function (req, res) {
     res.send("Hello There!");
@@ -306,6 +316,29 @@ app.get("/game-state/:roomId", jsonParser, async function (req, res) {
     }
 });
 
+app.post("/send-image", jsonParser, async function (req, res) {
+    RoomService.saveImage(req, res, path.join(__dirname, "dist"));
+    ResHandler.success(res, 1);
+});
+
+app.get("/images", jsonParser, async function (req, res) {
+    let ret = await RoomService.fetchImages(req, res, path.join(__dirname, "dist")).then();
+    if (ret.err === 0) {
+        ResHandler.success(res, ret.data);
+    } else {
+        ResHandler.fail(res, ret.err, ret.errMsg);
+    }
+});
+
+app.get("/room-in", jsonParser, async function (req, res) {
+    let ret = await RoomService.fetchRoomIn(req, res).then();
+    if (ret.err === 0) {
+        ResHandler.success(res, ret.data);
+    } else {
+        ResHandler.fail(res, ret.err, ret.errMsg);
+    }
+});
+
 app.get("/is-test", jsonParser, async function (req, res) {
     let ret = await DrawWordsDao.fetchWord();
     ResHandler.success(res, ret[0].draw_word);
@@ -345,13 +378,20 @@ io.on('connection', async (socket) => {
     socket.on('disconnect', function () {
         console.log('A user disconnected');
     });
-    socket.on('disconnect', function () {
-        console.log('A user disconnected');
-    });
     socket.on("sendPath", function (data) {
         let dataObj = JSON.parse(data);
         let roomId = dataObj.roomId;
         let pathJSONString = dataObj.path;
-        io.to(roomId.toString()).emit("receivePath", pathJSONString);
+        socket.broadcast.to(roomId.toString()).emit("receivePath", pathJSONString);
+    });
+    socket.on("clear", function (data) {
+        let dataObj = JSON.parse(data);
+        let roomId = dataObj.roomId;
+        socket.broadcast.to(roomId.toString()).emit("clear");
+    });
+    socket.on("revoke", function (data) {
+        let dataObj = JSON.parse(data);
+        let roomId = dataObj.roomId;
+        socket.broadcast.to(roomId.toString()).emit("revoke");
     });
 });

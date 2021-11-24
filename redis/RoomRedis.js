@@ -306,7 +306,20 @@ let exported = {
                     }
                 });
         });
-    }
+    },
+    updateRoundState: function (roomId, answerKey, remainingSecond) {
+        return new Promise(function (resolve, reject) {
+            redis_client.eval(fs.readFileSync(path.resolve(__dirname, './lua/updateRoundState.lua')), 5, PLAYERS_PREFIX,
+                ANSWER_COUNT_PREFIX, ANSWER_EXPIRE_PREFIX, roomId, answerKey, remainingSecond, function (err, result) {
+                    if (err) {
+                        console.error(err);
+                        reject("Redis down");
+                    } else {
+                        resolve(result);
+                    }
+                });
+        });
+    },
 };
 
 module.exports = exported
