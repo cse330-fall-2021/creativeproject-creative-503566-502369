@@ -15,7 +15,8 @@ function redis_client_init(socketIO) {
         console.log(channel + " " + key);
         let keys = key.split(':');
         if (keys[0] === "sessionExpire") {
-            UserRedis.logout(keys[1]);
+            await RoomService.exitRoom(keys[1], null);
+            await UserRedis.logout(keys[1]);
         } else if (keys[0] === "answerEX") {
             let roomId = Number(keys[1]);
             let roomInfo = await RoomRedis.fetchRoomBasicInfo(roomId);

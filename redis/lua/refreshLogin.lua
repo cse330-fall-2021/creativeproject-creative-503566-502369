@@ -1,5 +1,6 @@
 local sessionId = KEYS[1]
 local expirePeriod = 60 * 60 * 24
+-- local expirePeriod = 10
 
 local exists = redis.call("exists", "sessionExpire:" .. sessionId)
 if exists == 1 then
