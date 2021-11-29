@@ -74,18 +74,18 @@ let exported = {
         return new Promise(function (resolve, reject) {
             redis_client.eval(fs.readFileSync(path.resolve(__dirname, './lua/bindSocketID.lua')), 4, SESSION_TABLE_KEY,
                 USER_TABLE_PREFIX, sessionId, socketId, function (err, result) {
-                if (err) {
-                    console.error(err);
-                    reject("Redis down");
-                } else {
-                    resolve(result);
-                }
-            });
+                    if (err) {
+                        console.error(err);
+                        reject("Redis down");
+                    } else {
+                        resolve(result);
+                    }
+                });
         });
     },
-    fetchSocketId:function (userId) {
+    fetchSocketId: function (userId) {
         return new Promise(function (resolve, reject) {
-            redis_client.hget(USER_TABLE_PREFIX + userId , "socketId", function (err, results) {
+            redis_client.hget(USER_TABLE_PREFIX + userId, "socketId", function (err, results) {
                 if (err) {
                     reject("Redis down");
                 } else {
@@ -94,6 +94,24 @@ let exported = {
             });
         });
     },
+    fetchUserByUserId: function (userId) {
+        return new Promise(function (resolve, reject) {
+            redis_client.hgetall(USER_TABLE_PREFIX + userId, function (err, result) {
+                if (err) {
+                    console.error(err);
+                    reject("Redis down");
+                } else {
+                    for (const [key, value] of Object.entries(result)) {
+                        if(key === "userId" || key === "roomId") {
+                            result[key] = Number(value);
+                        }
+                    }
+
+                    resolve(result);
+                }
+            });
+        });
+    }
 };
 
 module.exports = exported

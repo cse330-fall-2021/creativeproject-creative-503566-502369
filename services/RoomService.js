@@ -576,6 +576,29 @@ let exported = {
         }
         return RetHandler.success(roomIn);
     },
+    async kickUser(req, res, socketIO) {
+        let kickedUserId = req.body.userId;
+        let sessionId = req.sessionID;
+        let userInfo = await fetchBySessionId(sessionId);
+        if (!userInfo) {
+            return RetHandler.fail(-1, "Please login first.");
+        }
+        let kickedUser = await UserRedis.fetchUserByUserId(kickedUserId);
+        let kickedSocketId = kickedUser.socketId;
+        // await RoomRedis.exitRoom(kickedUser.userId, kickedUser.username, kickedUser.roomId);
+        if (socketIO !== null && kickedSocketId) {
+            socketIO.to(kickedSocketId).emit("kicked", JSON.stringify({}));
+            // let skts = socketIO.sockets.sockets;
+            // skts.forEach((tempSocket) => {
+            //     if (tempSocket.id === kickedSocketId)
+            //         tempSocket.disconnect(true);
+            // });
+            // socketIO.to(kickedUser.roomId.toString()).emit("refreshSeat", JSON.stringify({
+            //     roomId: kickedUser.roomId,
+            // }));
+        }
+        return RetHandler.success(true);
+    },
 };
 
 module.exports = exported

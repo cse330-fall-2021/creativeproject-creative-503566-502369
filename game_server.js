@@ -339,9 +339,14 @@ app.get("/room-in", jsonParser, async function (req, res) {
     }
 });
 
-app.get("/is-test", jsonParser, async function (req, res) {
-    let ret = await DrawWordsDao.fetchWord();
-    ResHandler.success(res, ret[0].draw_word);
+app.post("/kick", jsonParser, async function (req, res) {
+    let socketIO = req.app.get('socketio');
+    let ret = await RoomService.kickUser(req, res, socketIO).then();
+    if (ret.err === 0) {
+        ResHandler.success(res, ret.data);
+    } else {
+        ResHandler.fail(res, ret.err, ret.errMsg);
+    }
 });
 
 let server = app.listen(8081, function () {
